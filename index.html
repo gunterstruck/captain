@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#4F46E5">
-    <meta name="description" content="Sprach-Tagebuch mit KI-Zusammenfassungen">
+    <meta name="description" content="Sprach-Tagebuch mit KI-Zusammenfassungen und Bild-Notizen">
     <title>Sprach-Tagebuch Pro</title>
     <link rel="manifest" href="manifest.webmanifest">
     <style>
@@ -151,7 +151,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 20px auto;
+            margin: 20px auto 10px; /* Abstand nach unten reduziert */
         }
 
         .record-button:hover {
@@ -279,6 +279,20 @@
 
         .btn-icon:hover {
             background: #E5E7EB;
+        }
+        
+        /* NEUER STIL FÜR AKTIONEN UNTER DEM RECORD BUTTON */
+        .record-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+        
+        .record-actions button {
+            padding: 8px 15px;
+            font-size: 14px;
+            flex: 0 0 auto;
         }
 
         .tags-section {
@@ -510,6 +524,15 @@
             white-space: pre-wrap;
             margin-bottom: 10px;
         }
+        
+        /* NEU: Bild-Vorschau in Einträgen */
+        .entry-image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 10px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
 
         .entry-actions {
             display: flex;
@@ -619,6 +642,17 @@
             cursor: pointer;
             font-size: 18px;
         }
+        
+        /* NEU: Stil für die Bildvorschau beim Hochladen */
+        #imagePreview {
+            max-width: 100%;
+            max-height: 200px; 
+            margin: 15px auto 5px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            display: none;
+        }
+
 
         @media (max-width: 640px) {
             body {
@@ -643,6 +677,10 @@
 
             .tags-input-group button {
                 flex: 1 1 100%;
+            }
+            
+            .record-actions {
+                flex-direction: column;
             }
         }
     </style>
@@ -742,23 +780,30 @@
         <div class="record-section">
             <h2 class="section-title">Neue Notiz aufnehmen</h2>
             <button class="record-button" id="recordBtn" aria-label="Aufnahme starten">🎤</button>
-
-<div style="margin-top:10px;">
-    <!-- Nur noch ein verstecktes Input-Feld für den Audio-Upload-Fallback -->
-    <input type="file" id="audioInput" accept="audio/*" capture="microphone" style="display:none;">
-    <div id="iosHint" class="status" style="display:none;">Mobile Geräte erkannt: Tippe auf das Mikrofon-Symbol, um die Aufnahme zu starten oder eine Audiodatei auszuwählen.</div>
-</div>
             
-            <!-- NEU: NFC-Button (nur sichtbar, wenn Web NFC API unterstützt wird) -->
-            <div style="margin-top:15px; display:flex; justify-content:center;">
+            <!-- NEU: Bild-Vorschau -->
+            <img id="imagePreview" src="" alt="Hochgeladenes Bild" />
+
+            <div class="record-actions">
+                <!-- Bild Upload Button -->
+                <button class="btn-secondary" id="imageUploadBtn">🖼️ Bild hochladen</button>
+                <!-- Nur noch ein verstecktes Input-Feld für den Audio-Upload-Fallback -->
+                <input type="file" id="audioInput" accept="audio/*" capture="microphone" style="display:none;">
+                <!-- NEU: Verstecktes Input-Feld für den Bild-Upload -->
+                <input type="file" id="imageInput" accept="image/*" style="display:none;">
+                
+                <!-- NFC-Button (nur sichtbar, wenn Web NFC API unterstützt wird) -->
                 <button class="btn-secondary" id="nfcBtn" style="display:none;">NFC-Tag lesen 📲</button>
             </div>
 
+
+            <div id="iosHint" class="status" style="display:none;">Mobile Geräte erkannt: Tippe auf das Mikrofon-Symbol, um die Aufnahme zu starten oder eine Audiodatei auszuwählen.</div>
+            
             <div class="status" id="status" role="status" aria-live="polite">Bereit zur Aufnahme</div>
         </div>
 
         <div class="transcript-section" id="transcriptSection">
-            <h2 class="section-title">Transkription (Wird automatisch verarbeitet...)</h2>
+            <h2 class="section-title" id="transcriptTitle">Transkription (Wird automatisch verarbeitet...)</h2>
             <textarea id="transcript" readonly aria-label="Transkribierter Text"></textarea>
             <!-- Buttons entfernt, da der Prozess jetzt automatisch in die Zusammenfassung übergeht -->
             <div class="loading" id="loading" role="status">KI erstellt Zusammenfassung...</div>
@@ -894,6 +939,7 @@
         let currentTranscript = '';
         let currentLocation = null;
         let currentTags = [];
+        let currentImageBase64 = null; // Speichert das Base64-Bild für die Notiz (temporär für KI-Call)
         let selectionMode = false;
         let selectedEntries = new Set();
         let editingEntryId = null;
@@ -906,6 +952,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadAPIKey(); // <--- API Key und Provider werden geladen
             loadLocationPermission(); // NEU: Standort-Präferenz wird geladen
+            
+            migrateStripImages(); // NEU: Alte Bilder aus dem Speicher entfernen
+            
             loadEntries();
             // initSpeechRecognition(); // Entfernt, da Live-SR wegfällt
             setupEventListeners();
@@ -924,6 +973,23 @@
             // Die Logik zum Aufklappen wird jetzt von loadAPIKey aufgerufen, 
             // damit der DOM-Wert des Keys gelesen werden kann.
         });
+        
+        // NEUE FUNKTION: Entfernt alle Bilder aus den gespeicherten Einträgen
+        function migrateStripImages() {
+          const entries = getEntries();
+          let changed = false;
+          entries.forEach(e => {
+            if (e.image) { 
+              delete e.image; 
+              changed = true; 
+            }
+          });
+          if (changed) {
+            console.log('Migration durchgeführt: Alte Bildeinträge entfernt.');
+            saveEntries(entries);
+          }
+        }
+
 
         function getEntries() {
             const stored = localStorage.getItem(DIARY_KEY);
@@ -1051,6 +1117,14 @@
             const audioInput = document.getElementById('audioInput');
             audioInput.addEventListener('change', handleAudioFileSelection);
             
+            // NEU: Image Input Listener und Button
+            const imageInput = document.getElementById('imageInput');
+            document.getElementById('imageUploadBtn').addEventListener('click', () => {
+                resetForm(); // Formular zurücksetzen, bevor ein neuer Prozess startet
+                imageInput.click();
+            });
+            imageInput.addEventListener('change', handleImageFileSelection);
+            
             // NEU: NFC Listener
             const nfcBtn = document.getElementById('nfcBtn');
             if (nfcBtn) nfcBtn.addEventListener('click', readNFC);
@@ -1141,11 +1215,84 @@
              currentTranscript = text;
              const t = document.getElementById('transcript');
              if (t) t.value = currentTranscript;
+             
+             // Beim NFC-Scan wird die Transkript-Sektion als temporärer Speicher verwendet, aber der Titel ändert sich
+             document.getElementById('transcriptTitle').textContent = 'NFC-Text (Wird automatisch verarbeitet...)';
              const ts = document.getElementById('transcriptSection');
              if (ts) ts.classList.add('show');
              
              document.getElementById('status').textContent = 'NFC-Inhalt erfasst. Erstelle Zusammenfassung...';
-             await summarize(currentTranscript);
+             await summarize(currentTranscript, null); // Kein Bild
+        }
+
+        // --- BILD-UPLOAD LOGIK ---
+        // NEUE FUNKTION: Bild ausgewählt
+        async function handleImageFileSelection(e) {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+
+            // currentImageBase64 wird TEMPORÄR FÜR DEN KI-CALL gesetzt.
+            // Es wird auf NULL gesetzt, sobald die KI-Analyse fertig ist (siehe reader.onload -> finally block).
+
+            // Optional: kleine Vorschau zeigen (kannst du auch weglassen)
+            const imagePreview = document.getElementById('imagePreview');
+            const reader = new FileReader();
+
+            reader.onload = async (event) => {
+                imagePreview.src = event.target.result;
+                imagePreview.style.display = 'block';
+                
+                // Base64 URI temporär speichern, falls für OpenAI benötigt (wird nach KI-Call gelöscht)
+                currentImageBase64 = event.target.result; 
+                
+                // KI-Beschreibung holen
+                document.getElementById('transcriptTitle').textContent = 'Bild-Beschreibung (Wird automatisch verarbeitet...)';
+                document.getElementById('transcriptSection').classList.add('show');
+                document.getElementById('status').textContent = 'Bild hochgeladen. Erstelle Beschreibung...';
+                document.getElementById('status').classList.add('processing');
+                
+                try {
+                    await summarize(null, file); // nutzt dein vorhandenes image->text
+                } finally {
+                    document.getElementById('status').classList.remove('processing');
+                    // Vorschau leeren, damit Speicher frei wird
+                    imagePreview.src = '';
+                    imagePreview.style.display = 'none';
+                    // WICHTIG: currentImageBase64 IMMER nach der Verarbeitung löschen!
+                    currentImageBase64 = null; 
+                }
+                
+                document.getElementById('transcriptSection').classList.remove('show'); // Transkript/Beschreibung ist nur ein Zwischenschritt
+            };
+
+            reader.onerror = () => {
+                showError('Fehler beim Lesen der Datei.');
+                resetForm();
+            };
+
+            reader.readAsDataURL(file); // Liest das Bild als Base64-String
+        }
+
+        // NEUE FUNKTION: Image-to-Text
+        async function imageToText(file, apiKey, provider) {
+            const maxMB = 5;
+            if (file.size > maxMB * 1024 * 1024) {
+                throw new Error(`Bilddatei ist größer als ${maxMB} MB.`);
+            }
+
+            // Sicherstellen, dass nur Multimodale Modelle verwendet werden
+            if (provider === 'openai') {
+                // GPT-4o oder gpt-4-turbo
+                return callLLMAPI('Beschreibe dieses Bild detailliert.', apiKey, provider, 0, file);
+            } else if (provider === 'anthropic') {
+                 // claude-3-5-sonnet oder claude-3-haiku
+                return callLLMAPI('Beschreibe dieses Bild detailliert.', apiKey, provider, 0, file);
+            } else if (provider === 'gemini') {
+                // gemini-2.5-flash
+                return callLLMAPI('Beschreibe dieses Bild detailliert.', apiKey, provider, 0, file);
+            }
+
+            throw new Error('Der ausgewählte KI-Anbieter unterstützt möglicherweise keine Bildanalyse (Multimodalität).');
         }
 
 
@@ -1284,6 +1431,7 @@
              // 1. Transkription starten
             document.getElementById('status').textContent = 'Audio-Datei gesendet. Warte auf KI-Transkription...';
             document.getElementById('status').classList.add('processing');
+            document.getElementById('transcriptTitle').textContent = 'Transkription (Wird automatisch verarbeitet...)'; // Setze Titel zurück
             
             const apiKey = document.getElementById('apiKey').value.trim();
             const provider = document.getElementById('apiProvider').value;
@@ -1315,7 +1463,7 @@
 
             // 2. Transkription fertig - Automatische Zusammenfassung starten
             document.getElementById('status').textContent = 'Transkription abgeschlossen. Erstelle Zusammenfassung...';
-            await summarize(currentTranscript);
+            await summarize(currentTranscript, null); // Jetzt mit transcript, kein Bild
             document.getElementById('status').classList.remove('processing');
         }
 
@@ -1358,9 +1506,12 @@
         function updateRecordButton(statusText) {
             const btn = document.getElementById('recordBtn');
             const status = document.getElementById('status');
+            const imgBtn = document.getElementById('imageUploadBtn');
+            const nfcBtn = document.getElementById('nfcBtn');
 
             if (status) status.textContent = statusText;
 
+            // Mikrofon-Button Zustand
             if (statusText.includes('Aufnahme läuft')) {
                 if (btn) {
                     btn.classList.add('recording');
@@ -1375,13 +1526,24 @@
                 }
             }
 
-            if (statusText.includes('Warte auf KI') || statusText.includes('Erstelle Zusammenfassung') || statusText.includes('Verarbeite') || statusText.includes('NFC')) {
+            // Deaktivierung für alle Buttons während der Verarbeitung
+            const isProcessing = statusText.includes('Warte auf KI') || 
+                                 statusText.includes('Erstelle Zusammenfassung') || 
+                                 statusText.includes('Verarbeite') || 
+                                 statusText.includes('NFC') || 
+                                 statusText.includes('Beschreibung');
+
+            if (isProcessing) {
                  if (status) status.classList.add('processing');
                  if (btn) btn.disabled = true;
+                 if (imgBtn) imgBtn.disabled = true;
+                 if (nfcBtn) nfcBtn.disabled = true;
 
             } else {
                  if (status) status.classList.remove('processing');
                  if (btn) btn.disabled = false;
+                 if (imgBtn) imgBtn.disabled = false;
+                 if (nfcBtn) nfcBtn.disabled = false;
             }
 
         }
@@ -1455,10 +1617,11 @@
             // Wenn es deaktiviert wird, muss nichts weiter passieren, außer der Speicherung
         }
 
-        // NEU: Summarize-Funktion nimmt jetzt Transkript als Argument und wird automatisch aufgerufen
-        async function summarize(transcript) {
-            if (!transcript) { 
-                showError('Keine Transkription vorhanden, kann nicht zusammenfassen.'); 
+        // NEU: Summarize-Funktion akzeptiert jetzt Transkript ODER Datei
+        async function summarize(transcript, imageFile) {
+            
+            if (!transcript && !imageFile) { 
+                showError('Kein Transkript oder Bild vorhanden, kann nicht zusammenfassen/beschreiben.'); 
                 resetForm();
                 return; 
             }
@@ -1475,19 +1638,33 @@
             document.getElementById('loading').classList.add('show');
             document.getElementById('error').classList.remove('show');
             document.getElementById('summarySection').classList.add('show');
+            
+            // Setze den Status-Text entsprechend
+            if (imageFile) {
+                 document.getElementById('status').textContent = 'KI erstellt Bildbeschreibung...';
+            } else if (transcript) {
+                 document.getElementById('status').textContent = 'KI erstellt Zusammenfassung...';
+            }
+
 
             try {
-                let summary = await callLLMAPI(transcript, apiKey, provider);
+                let summary = '';
+                if (imageFile) {
+                    summary = await imageToText(imageFile, apiKey, provider);
+                } else if (transcript) {
+                    summary = await callLLMAPI(transcript, apiKey, provider);
+                }
+
                 document.getElementById('summary').value = summary;
                 document.getElementById('loading').classList.remove('show');
                 
                 // setze Status zurück, damit der Button wieder klickbar ist
-                updateRecordButton('Zusammenfassung fertig!');
+                updateRecordButton(imageFile ? 'Bildbeschreibung fertig!' : 'Zusammenfassung fertig!');
                 
                 currentTags = [];
                 updateCurrentTags();
             } catch (error) {
-                showError('Fehler beim Erstellen der Zusammenfassung: ' + error.message);
+                showError('Fehler beim Erstellen der Notiz: ' + error.message);
                 document.getElementById('loading').classList.remove('show');
                 resetForm();
             }
@@ -1515,7 +1692,7 @@
                     prompt = `Formuliere den folgenden Text lockerer und umgangssprachlicher:\n\n${summary}`;
                 }
 
-                let reformulated = await callLLMAPI(prompt, apiKey, provider);
+                let reformulated = await callLLMAPI(prompt, apiKey, provider, 0, null); // Kein Bild
                 document.getElementById('summary').value = reformulated;
                 document.getElementById('reformulateLoading').classList.remove('show');
                 showSuccess('Erfolgreich neu formuliert!');
@@ -1644,25 +1821,32 @@
             updateEditTags();
         }
 
+        // KORRIGIERTE saveEntry Funktion
         function saveEntry() {
             const summary = document.getElementById('summary').value.trim();
-            if (!summary) { showError('Keine Zusammenfassung vorhanden.'); return; }
 
-            const entry = {
-                id: Date.now().toString(),
-                text: summary,
-                timestamp: new Date().toISOString(),
-                location: currentLocation || null,
-                tags: [...currentTags],
-                transcript: currentTranscript || ''
-            };
+            // Prueft, ob Text zum Speichern vorhanden ist (da Bilder nicht mehr gespeichert werden)
+            if (!summary) { 
+                showError('Bitte gib Text ein (Zusammenfassung).');
+                return;
+            }
 
             const entries = getEntries();
-            entries.unshift(entry);
+            const newEntry = {
+                id: Date.now().toString(),
+                text: summary || '',
+                image: null, // BILD WIRD NICHT MEHR GESPEICHERT
+                tags: [...currentTags], 
+                location: currentLocation,
+                timestamp: new Date().toISOString(),
+                transcript: currentTranscript || '' 
+            };
+
+            entries.unshift(newEntry); // Neue Einträge vorne einfügen
             saveEntries(entries);
 
             showSuccess('Notiz gespeichert!');
-            setTimeout(() => { resetForm(); }, 1000);
+            resetForm(); 
         }
 
         function deleteEntry(id) {
@@ -1698,6 +1882,7 @@
             if (entryIndex > -1) {
                 entries[entryIndex].text = text;
                 entries[entryIndex].tags = [...currentTags];
+                // Bild bleibt unverändert, da es im Bearbeitungsmodal nicht geändert werden kann
                 saveEntries(entries);
                 
                 showSuccess('Eintrag aktualisiert!', 'editSuccess');
@@ -1735,7 +1920,7 @@
                     prompt = `Formuliere den folgenden Text lockerer und umgangssprachlicher:\n\n${entry.text}`;
                 }
 
-                let reformulated = await callLLMAPI(prompt, apiKey, provider);
+                let reformulated = await callLLMAPI(prompt, apiKey, provider, 0, null); // Kein Bild
 
                 const entries = getEntries();
                 const entryIndex = entries.findIndex(e => e.id === id);
@@ -1753,8 +1938,14 @@
             const entry = getEntries().find(e => e.id === id);
             if (!entry) return;
 
+            // Bild-Hinweis bleibt für alte Einträge, aber neue haben kein Bild mehr
+            let textToCopy = entry.text;
+            if (entry.image) {
+                textToCopy = `[Bild-Notiz]\n${textToCopy}`;
+            }
+
             try {
-                await navigator.clipboard.writeText(entry.text);
+                await navigator.clipboard.writeText(textToCopy);
                 showSuccess('In Zwischenablage kopiert!');
             } catch (error) {
                 showError('Fehler beim Kopieren: ' + error.message);
@@ -1764,10 +1955,16 @@
         async function shareEntry(id) {
             const entry = getEntries().find(e => e.id === id);
             if (!entry) return;
+            
+            // Bild-Hinweis bleibt für alte Einträge, aber neue haben kein Bild mehr
+            let textToShare = entry.text;
+            if (entry.image) {
+                textToShare = `[Bild-Notiz]\n${textToShare}`;
+            }
 
             if (navigator.share) {
                 try {
-                    await navigator.share({ title: 'Sprach-Tagebuch Notiz', text: entry.text });
+                    await navigator.share({ title: 'Sprach-Tagebuch Notiz', text: textToShare });
                 } catch (error) {
                     console.log('Sharing cancelled');
                 }
@@ -1835,6 +2032,16 @@
                 }
                 header.appendChild(dateDiv);
                 entryDiv.appendChild(header);
+                
+                // NEU: Bild-Vorschau hinzufügen (wird nur für ALTE Einträge gerendert, da neue kein Bild mehr speichern)
+                if (entry.image) {
+                     const img = document.createElement('img');
+                     img.className = 'entry-image';
+                     img.src = entry.image;
+                     img.alt = entry.text.substring(0, 50) + '...'; // Nutze den Text als Alt-Text
+                     entryDiv.appendChild(img);
+                }
+
 
                 if (entry.tags && entry.tags.length > 0) {
                     const tagsDiv = document.createElement('div');
@@ -1950,11 +2157,15 @@
             document.getElementById('batchSummarySuccess').classList.remove('show');
 
             try {
-                const combinedText = entries.map((e, i) => `Notiz ${i + 1} (${new Date(e.timestamp).toLocaleDateString('de-DE')}):\n${e.text}`).join('\n\n---\n\n');
+                // Berücksichtige Bilder in der zusammengefassten Notiz
+                const combinedText = entries.map((e, i) => {
+                    const imgNote = e.image ? ' [Bild-Notiz enthalten]' : '';
+                    return `Notiz ${i + 1} (${new Date(e.timestamp).toLocaleDateString('de-DE')})${imgNote}:\n${e.text}`;
+                }).join('\n\n---\n\n');
                 
                 const prompt = `Erstelle eine prägnante Gesamt-Zusammenfassung der folgenden ${entries.length} Notizen. Identifiziere gemeinsame Themen und wichtige Erkenntnisse:\n\n${combinedText}`;
 
-                let summary = await callLLMAPI(prompt, apiKey, provider);
+                let summary = await callLLMAPI(prompt, apiKey, provider, 0, null); // Kein Bild
 
                 document.getElementById('batchSummaryLoading').classList.remove('show');
                 document.getElementById('batchSummaryText').value = summary;
@@ -1987,7 +2198,11 @@
 
 
             try {
-                const combinedText = entries.map((e, i) => `--- Eintrag ${i + 1} ---\n${e.text}`).join('\n\n');
+                // Berücksichtige Bilder in der zusammengefassten Notiz
+                const combinedText = entries.map((e, i) => {
+                    const imgNote = e.image ? ' [Bild-Notiz enthalten]' : '';
+                    return `--- Eintrag ${i + 1}${imgNote} ---\n${e.text}`;
+                }).join('\n\n');
                 
                 // Strenger Prompt zur Kompilation von Daten und Listen
                 const prompt = `Führe die folgenden ${entries.length} Notizen zusammen, ohne Informationen zu verlieren oder zu verallgemeinern. Deine Aufgabe ist die detailgetreue Kompilation.
@@ -2001,7 +2216,7 @@
                 
                 ${combinedText}`;
 
-                let result = await callLLMAPI(prompt, apiKey, provider);
+                let result = await callLLMAPI(prompt, apiKey, provider, 0, null); // Kein Bild
 
                 document.getElementById('batchSummaryLoading').classList.remove('show');
                 document.getElementById('batchSummaryText').value = result;
@@ -2025,7 +2240,8 @@
                 location: null,
                 // Tag anpassen, je nachdem, welche Aktion zuletzt ausgeführt wurde
                 tags: [document.getElementById('batchSummaryTitle').textContent.includes('Zusammenfassung') ? 'Zusammenfassung' : 'Kompilation'],
-                transcript: `${document.getElementById('batchSummaryTitle').textContent} von ${selectedEntries.size} Notizen`
+                transcript: `${document.getElementById('batchSummaryTitle').textContent} von ${selectedEntries.size} Notizen`,
+                image: null // Bei Zusammenfassungen wird kein Bild gespeichert
             };
 
             const entries = getEntries();
@@ -2101,7 +2317,8 @@
                 const date = new Date(e.timestamp).toLocaleString('de-DE');
                 const tags = e.tags ? `\nTags: ${e.tags.join(', ')}` : '';
                 const location = e.location ? `\nStandort: ${e.location.latitude}, ${e.location.longitude}` : '';
-                return `=== ${date} ===${tags}${location}\n\n${e.text}`;
+                const image = e.image ? `\n[Bild-Notiz enthalten]` : '';
+                return `=== ${date} ===${image}${tags}${location}\n\n${e.text}`;
             }).join('\n\n' + '='.repeat(50) + '\n\n');
 
             const blob = new Blob([text], { type: 'text/plain' });
@@ -2122,7 +2339,8 @@
 
             const text = entries.map(e => {
                 const date = new Date(e.timestamp).toLocaleDateString('de-DE');
-                return `${date}:\n${e.text}`;
+                const image = e.image ? '[Bild-Notiz] ' : '';
+                return `${date}: ${image}\n${e.text}`;
             }).join('\n\n---\n\n');
 
             if (navigator.share) {
@@ -2205,11 +2423,17 @@
             currentTranscript = '';
             currentLocation = null;
             currentTags = [];
+            currentImageBase64 = null; // ZURÜCKSETZEN
             document.getElementById('transcript').value = '';
             document.getElementById('summary').value = '';
             document.getElementById('newTag').value = '';
             document.getElementById('transcriptSection').classList.remove('show');
             document.getElementById('summarySection').classList.remove('show');
+            
+            // Bild-Vorschau zurücksetzen
+            const imagePreview = document.getElementById('imagePreview');
+            imagePreview.src = '';
+            imagePreview.style.display = 'none';
             
             // Setze den Status zurück
             updateRecordButton('Bereit zur Aufnahme');
@@ -2266,19 +2490,63 @@ navigator.serviceWorker.addEventListener('controllerchange', () => {
             }
             return 'Unbekannter KI-Anbieter.';
         }
+        
+        // Hilfsfunktion: Konvertiert Data URL zu Base64 und MimeType
+        function dataURLtoParts(dataURL) {
+            const parts = dataURL.split(';base64,');
+            if (parts.length < 2) throw new Error("Ungültiges Data-URL-Format.");
+            const mime = parts[0].split(':')[1];
+            const base64 = parts[1];
+            return { mimeType: mime, data: base64 };
+        }
 
-        // Hauptfunktion für den KI-API-Aufruf
-        async function callLLMAPI(userPrompt, apiKey, provider, retryCount = 0) {
+
+        // Hauptfunktion für den KI-API-Aufruf (jetzt mit optionalem File-Parameter)
+        async function callLLMAPI(userPrompt, apiKey, provider, retryCount = 0, imageFile = null) {
             let url = '';
             let headers = {};
             let body = {};
             let model = '';
-            let systemInstruction = 'Du bist ein freundlicher, prägnanter Assistent, der Sprachnotizen zusammenfasst und umformuliert. Deine Antwort soll nur die gewünschte Ausgabe enthalten, ohne einleitenden Text wie "Hier ist die Zusammenfassung". Antworte auf Deutsch.';
+            let systemInstruction = 'Du bist ein freundlicher, prägnanter Assistent, der Notizen zusammenfasst, umformuliert oder Bilder detailliert beschreibt. Deine Antwort soll nur die gewünschte Ausgabe enthalten, ohne einleitenden Text wie "Hier ist die Zusammenfassung". Antworte auf Deutsch.';
+            
+            // Konvertierung für Multimodal-Payloads
+            let imageParts = null;
+            if (imageFile) {
+                // Konvertiere die File-API-Datei in Base64 (wird im anderen Script erledigt)
+                // HINWEIS: Bei der Bildanalyse ist imageFile eine File-Objekt, 
+                // beim Speichern verwenden wir currentImageBase64 (Data-URL).
+                // Da wir callLLMAPI nur direkt nach dem Upload (mit imageFile) 
+                // oder beim Reformulieren/Zusammenfassen (ohne Bild) aufrufen, 
+                // ist die Logik hier konsistent.
+                
+                // Für Gemini und Claude wird die Base64-Version benötigt
+                const base64Url = await new Promise(resolve => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.readAsDataURL(imageFile);
+                });
+                imageParts = dataURLtoParts(base64Url);
+            }
+
 
             // API Konfiguration basierend auf Anbieter
             if (provider === 'anthropic') {
                 url = 'https://api.anthropic.com/v1/messages';
-                model = 'claude-3-haiku-20240307';
+                model = 'claude-3-5-sonnet-20240620'; // Nutze ein besseres Multimodal-Modell
+                
+                // Aufbau der Nachrichten-Inhalte
+                let content = [{ type: 'text', text: userPrompt }];
+                if (imageParts) {
+                    content.unshift({
+                        type: 'image',
+                        source: {
+                            type: 'base64',
+                            media_type: imageParts.mimeType,
+                            data: imageParts.data
+                        }
+                    });
+                }
+                
                 headers = {
                     'Content-Type': 'application/json',
                     'x-api-key': apiKey,
@@ -2289,12 +2557,27 @@ navigator.serviceWorker.addEventListener('controllerchange', () => {
                     max_tokens: 2000,
                     system: systemInstruction,
                     messages: [
-                        { role: 'user', content: userPrompt }
+                        { role: 'user', content: content }
                     ]
                 };
+                
             } else if (provider === 'openai') {
                 url = 'https://api.openai.com/v1/chat/completions';
-                model = 'gpt-3.5-turbo';
+                model = 'gpt-4o'; // Nutze gpt-4o für Multimodalität
+                
+                let content = [{ type: 'text', text: userPrompt }];
+                // Wichtig: Nur Base64 in den Content, wenn currentImageBase64 (Data URL) gesetzt ist.
+                if (currentImageBase64) {
+                    // Da das Bild nur temporär gehalten wird, MUSS es für OpenAI hier aus dem State kommen.
+                    content.push({
+                        type: 'image_url',
+                        image_url: {
+                            url: currentImageBase64,
+                            detail: "low" 
+                        }
+                    });
+                }
+
                 headers = {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${apiKey}`
@@ -2303,25 +2586,39 @@ navigator.serviceWorker.addEventListener('controllerchange', () => {
                     model: model,
                     messages: [
                         { role: 'system', content: systemInstruction },
-                        { role: 'user', content: userPrompt }
+                        { role: 'user', content: content }
                     ],
                     max_tokens: 2000
                 };
             } else if (provider === 'gemini') {
                 // Gemini verwendet den Canvas-Proxy, daher kein API-Key im Header, sondern in der URL
-                url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`; // flash unterstützt Multimodalität
                 headers = {
                     'Content-Type': 'application/json'
                 };
-                // Korrigierte Struktur: generationConfig statt config und maxOutputTokens direkt darin
+                
+                let parts = [{ text: userPrompt }];
+                // Wenn imageFile übergeben wurde (beim initialen summarize-Call), dann Base64-Parts hinzufügen
+                if (imageParts) {
+                     parts.push({
+                         inlineData: { mimeType: imageParts.mimeType, data: imageParts.data }
+                     });
+                }
+
                 body = {
-                    contents: [{ parts: [{ text: userPrompt }] }],
+                    contents: [{ parts: parts }],
                     systemInstruction: { parts: [{ text: systemInstruction }] },
                     generationConfig: { maxOutputTokens: 2000 }
                 };
             } else {
                 throw new Error('Unbekannter KI-Anbieter ausgewählt.');
             }
+            
+            // Wenn eine Bilddatei vorhanden ist, setze den Modellnamen für die Diagnose
+            if (imageFile) {
+                 try { if(window.__memotag?.diag) window.__memotag.diag.diagLog(`Multimodal-Aufruf gestartet: ${model}`); } catch(_) {}
+            }
+
 
             try {
                 const response = await fetch(url, {
@@ -2351,7 +2648,7 @@ navigator.serviceWorker.addEventListener('controllerchange', () => {
                     const delay = Math.pow(2, retryCount) * 1000;
                     console.warn(`API-Aufruf fehlgeschlagen. Versuche es in ${delay}ms erneut...`);
                     await new Promise(resolve => setTimeout(resolve, delay));
-                    return callLLMAPI(userPrompt, apiKey, provider, retryCount + 1);
+                    return callLLMAPI(userPrompt, apiKey, provider, retryCount + 1, imageFile);
                 }
                 throw error;
             }
@@ -2538,33 +2835,17 @@ function isIOS() {
     return /iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
-function initIOSFallback() {
-    // Diagnose-Log hinzufügen, um zu sehen, ob die Funktion aufgerufen wird
-    try { if(window.__memotag?.diag) __memotag.diag.diagLog('Init: iOS Fallback (Status-Hinweis)'); } catch(_) {}
-    // Zeige Hinweis für mobile Geräte
-    const iosHint = document.getElementById('iosHint');
-    if (iosHint) {
-        // Wir nutzen die Tatsache aus, dass MediaRecorder auf iOS Safari nicht geht
-        const hasMediaRecorder = !!(navigator.mediaDevices && window.MediaRecorder);
-        if (!hasMediaRecorder) {
-            iosHint.style.display = 'block';
-        }
-    }
-}
+// NOTE: Die Funktion fileToBase64 wurde optimiert und in die callLLMAPI Logik integriert.
+// Wir behalten die Helper-Funktionen bei, um sie im Hauptscript zu verwenden.
 
-
+// Konvertiert File Blob zu Base64 String
 async function fileToBase64(file) {
-    const buf = await file.arrayBuffer();
-    let binary = '';
-    const bytes = new Uint8Array(buf);
-    const chunkSize = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-        const chunk = bytes.subarray(i, i + chunkSize);
-        // String.fromCharCode.apply(null, chunk) ist langsam und kann zu Stack Overflow führen.
-        // Besser: TextDecoder verwenden
-        binary += String.fromCharCode.apply(null, chunk);
-    }
-    return btoa(binary);
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]); // Nur Base64-Teil
+        reader.onerror = error => reject(error);
+        reader.readAsDataURL(file);
+    });
 }
 
 
@@ -2577,6 +2858,8 @@ function normalizeMime(file) {
     if (name.endsWith('.wav')) return 'audio/wav';
     if (name.endsWith('.ogg')) return 'audio/ogg';
     if (name.endsWith('.webm')) return 'audio/webm';
+    if (name.endsWith('.png')) return 'image/png'; // NEU: Image Mime
+    if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg'; // NEU: Image Mime
     return 'application/octet-stream';
 }
 
@@ -2620,7 +2903,7 @@ async function transcribeAudio(file, apiKey, provider) {
                 role: 'user',
                 content: [
                     { type: 'text', text: 'Transkribiere dieses Audio auf Deutsch.' },
-                    { type: 'input_audio', audio: { type: 'base64', data: b64, media_type: mime } }
+                    { type: 'image', source: { type: 'base64', data: b64, media_type: mime } } // Anthropic verwendet 'image' für alle Binärdaten in diesem Kontext
                 ]
             }]
         };
