@@ -539,6 +539,35 @@
             white-space: pre-wrap;
             margin-bottom: 10px;
         }
+
+        /* ✅ NEUE STILE FÜR EINKLAPPBARE NOTIZEN */
+        .entry-text-wrapper {
+            position: relative;
+            cursor: pointer;
+        }
+        .entry-text.collapsed {
+            max-height: 110px; /* Ca. 5 Zeilen */
+            overflow: hidden;
+            transition: max-height 0.4s ease-out;
+        }
+        .entry-text-wrapper .expand-overlay {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: linear-gradient(to bottom, transparent, #F9FAFB);
+            pointer-events: none;
+            opacity: 1;
+            transition: opacity 0.4s ease-out;
+        }
+        .entry-text-wrapper.expanded .entry-text {
+            max-height: 1500px; /* Großer Wert für die Ausdehnung */
+        }
+        .entry-text-wrapper.expanded .expand-overlay {
+            opacity: 0;
+        }
         
         /* NEU: Bild-Vorschau in Einträgen */
         .entry-image {
@@ -1153,7 +1182,7 @@
             if (writeNFCBtn) writeNFCBtn.addEventListener('click', writeNFC);
         }
         
-        // NEUE FUNKTION: NFC Schreibbutton (Aktivierung)
+        // NEU: NFC Schreibbutton (Aktivierung)
         function updateNFCWriteButton() {
             const writeNFCBtn = document.getElementById('writeNFCBtn');
             if (!writeNFCBtn) return;
@@ -1186,58 +1215,68 @@
             }
         }
         
-        // NEUE FUNKTION: NFC Schreib-Logik
-        async function writeNFC() {
+        // ✅ NEUE ZENTRALE FUNKTION zum Schreiben von Text auf einen NFC-Tag
+        async function writeTextToNFC(textToWrite, buttonEl = null) {
             if (!('NDEFReader' in window)) {
-                showError('NFC-Schreiben wird von diesem Gerät/Browser nicht unterstützt (Web NFC API fehlt).');
+                showError('NFC-Schreiben wird von diesem Gerät/Browser nicht unterstützt.');
                 return;
             }
 
-            const textToWrite = document.getElementById('summary').value.trim();
             if (!textToWrite) {
-                showError('Bitte erstellen Sie zuerst eine Zusammenfassung oder geben Sie Text ein.');
+                showError('Kein Text zum Schreiben auf den NFC-Tag vorhanden.');
                 return;
             }
             
-            const btn = document.getElementById('writeNFCBtn');
-            const originalText = btn.textContent;
-            btn.textContent = 'Bereit zum Scannen...';
-            btn.disabled = true;
+            let originalText = buttonEl ? buttonEl.textContent : '';
+            if (buttonEl) {
+                buttonEl.textContent = 'Bereit zum Scannen...';
+                buttonEl.disabled = true;
+            } else {
+                showSuccess('NFC-Tag zum Scannen bereithalten...');
+            }
 
             try {
                 const ndef = new NDEFReader();
-
-                // Erstelle den NDEF-Datensatz (Text Record)
                 const encoder = new TextEncoder();
-                const data = encoder.encode(textToWrite);
-                
                 const record = {
                     recordType: "text",
-                    data: data,
+                    data: encoder.encode(textToWrite),
                     lang: "de-DE",
                 };
 
-                // Schreibe den Datensatz auf den Tag
                 await ndef.write({ records: [record] });
-
                 showSuccess('Notiz erfolgreich auf NFC-Tag gespeichert!');
                 
             } catch (error) {
                 let errMsg = error.message;
-                if (error.name === 'NotAllowedError') {
-                    errMsg = 'NFC-Zugriff verweigert oder Tag nicht rechtzeitig gescannt.';
-                } else if (error.name === 'NotSupportedError') {
-                    errMsg = 'Tag ist schreibgeschützt oder hat nicht genug Speicher.';
-                } else if (error.name === 'UnknownError') {
-                    errMsg = 'Ein unbekannter Fehler ist beim Schreiben aufgetreten.';
-                }
+                if (error.name === 'NotAllowedError') errMsg = 'NFC-Zugriff verweigert oder Tag nicht rechtzeitig gescannt.';
+                else if (error.name === 'NotSupportedError') errMsg = 'Tag ist schreibgeschützt oder hat nicht genug Speicher.';
+                else if (error.name === 'UnknownError') errMsg = 'Ein unbekannter Fehler ist aufgetreten.';
                 showError(`Fehler beim Schreiben: ${errMsg}`);
                 
             } finally {
-                btn.textContent = originalText;
-                btn.disabled = false;
-                updateNFCWriteButton(); // Aktualisiert den Status, falls Text da ist
+                if (buttonEl) {
+                    buttonEl.textContent = originalText;
+                    buttonEl.disabled = false;
+                }
             }
+        }
+
+        // ✅ ANGEPASST: Ruft jetzt die zentrale Schreibfunktion auf
+        async function writeNFC() {
+            const textToWrite = document.getElementById('summary').value.trim();
+            const btn = document.getElementById('writeNFCBtn');
+            await writeTextToNFC(textToWrite, btn);
+        }
+
+        // ✅ NEUE FUNKTION: Schreibt den Text eines bestehenden Eintrags auf einen NFC-Tag
+        async function writeEntryToNFC(id, buttonEl) {
+            const entry = getEntries().find(e => e.id === id);
+            if (!entry || !entry.text) {
+                showError('Eintrag nicht gefunden oder leer.');
+                return;
+            }
+            await writeTextToNFC(entry.text, buttonEl);
         }
         
         // NEU: NFC Lese Logik
@@ -1512,7 +1551,7 @@
             }catch(err){
                 const errorMessage = 'Verarbeitung fehlgeschlagen: ' + (err.message || err);
                 showError(errorMessage);
-                try { if(window.__memotag?.diag) window.__memotag.diag.diagError(errorMessage); } catch(_) {}
+                try { if(window.__memotag?.diag) __memotag.diag.diagError(errorMessage); } catch(_) {}
                 resetForm();
             } finally {
                 __mrRecording = false;
@@ -1596,7 +1635,7 @@
             try{ if(stream) stream.getTracks().forEach(t=>t.stop()); }catch(_){} 
         }
         
-        function updateRecordButton(statusText) {15371537
+        function updateRecordButton(statusText) {
             const btn = document.getElementById('recordBtn');
             const status = document.getElementById('status');
             const imgBtn = document.getElementById('imageUploadBtn');
@@ -1833,7 +1872,7 @@
             updateCurrentTags();
         }
         
-        // NEUE FUNKTION: Tags sammeln und anzeigen
+        // NEU: Tags sammeln und anzeigen
         function updateAvailableTags() {
             const allEntries = getEntries();
             const allTags = new Set();
@@ -2154,24 +2193,54 @@
                 const textEl = document.createElement('div');
                 textEl.className = 'entry-text';
                 textEl.textContent = entry.text;
-                entryDiv.appendChild(textEl);
+
+                // ✅ NEUE LOGIK FÜR EINKLAPPBARE NOTIZEN
+                const isLongText = entry.text.split('\n').length > 5 || entry.text.length > 300;
+                if (isLongText) {
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'entry-text-wrapper';
+
+                    textEl.classList.add('collapsed');
+                    
+                    const overlay = document.createElement('div');
+                    overlay.className = 'expand-overlay';
+
+                    wrapper.appendChild(textEl);
+                    wrapper.appendChild(overlay);
+
+                    wrapper.addEventListener('click', () => {
+                        wrapper.classList.toggle('expanded');
+                    });
+                    
+                    entryDiv.appendChild(wrapper);
+                } else {
+                    entryDiv.appendChild(textEl);
+                }
+
 
                 const actions = document.createElement('div');
                 actions.className = 'entry-actions';
                 
+                // ✅ ANGEPASST: Button-Konfiguration für einfachere Handhabung
                 const btnConfigs = [
-                    ['Bearbeiten', 'btn-icon', () => editEntry(entry.id)],
-                    ['Neu formulieren', 'btn-icon', () => reformulateEntry(entry.id)],
-                    ['Kopieren', 'btn-icon', () => copyEntry(entry.id)],
-                    ['Teilen', 'btn-icon', () => shareEntry(entry.id)],
-                    ['Löschen', 'delete-btn', () => deleteEntry(entry.id)]
+                    ['Bearbeiten', 'btn-icon', (btn) => editEntry(entry.id)],
+                    ['Neu formulieren', 'btn-icon', (btn) => reformulateEntry(entry.id)],
+                    ['Kopieren', 'btn-icon', (btn) => copyEntry(entry.id)],
+                    ['Teilen', 'btn-icon', (btn) => shareEntry(entry.id)]
                 ];
+
+                // ✅ NEU: NFC-Button nur hinzufügen, wenn die API unterstützt wird
+                if ('NDEFReader' in window) {
+                    btnConfigs.push(['Auf NFC schreiben', 'btn-icon', (btn) => writeEntryToNFC(entry.id, btn)]);
+                }
+
+                btnConfigs.push(['Löschen', 'delete-btn', (btn) => deleteEntry(entry.id)]);
 
                 btnConfigs.forEach(([label, className, handler]) => {
                     const btn = document.createElement('button');
                     btn.className = className;
                     btn.textContent = label;
-                    btn.addEventListener('click', handler);
+                    btn.addEventListener('click', () => handler(btn));
                     actions.appendChild(btn);
                 });
 
@@ -2542,14 +2611,13 @@
         }
     </script>
     
-    <!-- ✅ NEU: Angepasster Service Worker Registrierungsscript -->
+    <!-- ✅ KORRIGIERTER Service Worker Registrierungsscript -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js', { scope: '/captain/' })
+                navigator.serviceWorker.register('sw.js', { scope: '/captain/' })
                     .then(reg => {
                         console.log('Service Worker registriert:', reg.scope);
-                        // Deine bestehende Update-Logik kann hier bleiben
                         if (reg.waiting) { reg.waiting.postMessage('SKIP_WAITING'); }
                         reg.addEventListener('updatefound', () => {
                             const nw = reg.installing;
