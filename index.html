@@ -3,10 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- ✅ NEU: Angepasster Pfad zum Manifest & Theme Color -->
+    <link rel="manifest" href="/captain/manifest.webmanifest">
     <meta name="theme-color" content="#4F46E5">
+
     <meta name="description" content="Sprach-Tagebuch mit KI-Zusammenfassungen und Bild-Notizen">
     <title>Sprach-Tagebuch Pro</title>
-    <link rel="manifest" href="manifest.webmanifest">
     <style>
         * {
             margin: 0;
@@ -753,7 +756,7 @@
 </style>
 
 
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="apple-touch-icon" href="/captain/icon-192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
 </head>
@@ -1546,7 +1549,7 @@
             } catch(err) {
                  const errorMessage = 'Transkription fehlgeschlagen: ' + (err.message || err);
                 showError(errorMessage);
-                try { if(window.__memotag?.diag) window.__memotag.diag.diagError(errorMessage); } catch(_) {}
+                try { if(window.__memotag?.diag) __memotag.diag.diagError(errorMessage); } catch(_) {}
                 resetForm();
                 return;
             }
@@ -1593,7 +1596,7 @@
             try{ if(stream) stream.getTracks().forEach(t=>t.stop()); }catch(_){} 
         }
         
-        function updateRecordButton(statusText) {
+        function updateRecordButton(statusText) {15371537
             const btn = document.getElementById('recordBtn');
             const status = document.getElementById('status');
             const imgBtn = document.getElementById('imageUploadBtn');
@@ -2537,33 +2540,34 @@
             
             updateNFCWriteButton(); // Schreibbutton ausblenden
         }
-
+    </script>
+    
+    <!-- ✅ NEU: Angepasster Service Worker Registrierungsscript -->
+    <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                
-navigator.serviceWorker.register('./sw.js').then(reg => {
-    console.log('Service Worker registriert', reg);
-    // Wenn bereits ein wartender Worker existiert: sofort aktivieren
-    if (reg.waiting) { reg.waiting.postMessage('SKIP_WAITING'); }
-    // Bei Updates
-    reg.addEventListener('updatefound', () => {
-        const nw = reg.installing;
-        if (nw) {
-            nw.addEventListener('statechange', () => {
-                if (nw.state === 'installed' && reg.waiting) {
-                    reg.waiting.postMessage('SKIP_WAITING');
-                }
-            });
-        }
-    });
-}).catch(err => console.log('SW registration failed:', err));
+                navigator.serviceWorker.register('./sw.js', { scope: '/captain/' })
+                    .then(reg => {
+                        console.log('Service Worker registriert:', reg.scope);
+                        // Deine bestehende Update-Logik kann hier bleiben
+                        if (reg.waiting) { reg.waiting.postMessage('SKIP_WAITING'); }
+                        reg.addEventListener('updatefound', () => {
+                            const nw = reg.installing;
+                            if (nw) {
+                                nw.addEventListener('statechange', () => {
+                                    if (nw.state === 'installed' && reg.waiting) {
+                                        reg.waiting.postMessage('SKIP_WAITING');
+                                    }
+                                });
+                            }
+                        });
+                    })
+                    .catch(err => console.error('SW Fehler:', err));
 
-// Neu laden, wenn der Controller wechselt (App-Update)
-navigator.serviceWorker.addEventListener('controllerchange', () => {
-    console.log('Neue Version aktiv – Seite wird aktualisiert…');
-    window.location.reload();
-});
-
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    console.log('Neue Version aktiv – Seite wird aktualisiert…');
+                    window.location.reload();
+                });
             });
         }
     </script>
@@ -2580,6 +2584,10 @@ navigator.serviceWorker.addEventListener('controllerchange', () => {
                 // OpenAI (GPT) Antwortstruktur
                 return data.choices?.[0]?.message?.content || 'Fehler beim Parsen der OpenAI-Antwort.';
             } else if (provider === 'gemini') {
+                // ✅ NEU: Verbesserte Fehlerbehandlung für blockierte Antworten
+                if (data.promptFeedback?.blockReason) {
+                    return `Fehler: Gemini-Antwort blockiert (Grund: ${data.promptFeedback.blockReason}).`;
+                }
                 // Google (Gemini) Antwortstruktur
                 return data.candidates?.[0]?.content?.parts?.[0]?.text || 'Fehler beim Parsen der Gemini-Antwort.';
             }
@@ -2704,7 +2712,7 @@ navigator.serviceWorker.addEventListener('controllerchange', () => {
             
             // Wenn eine Bilddatei vorhanden ist, setze den Modellnamen für die Diagnose
             if (imageFile) {
-                 try { if(window.__memotag?.diag) window.__memotag.diag.diagLog(`Multimodal-Aufruf gestartet: ${model}`); } catch(_) {}
+                 try { if(window.__memotag?.diag) __memotag.diag.diagLog(`Multimodal-Aufruf gestartet: ${model}`); } catch(_) {}
             }
 
 
@@ -3072,3 +3080,4 @@ function initMediaRecorderFallback(){
 </script>
 </body>
 </html>
+

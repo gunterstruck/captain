@@ -1,71 +1,71 @@
 {
-  "name": "Sprach-Tagebuch Pro",
-  "short_name": "Tagebuch",
-  "description": "Sprach-Notizen mit KI-Zusammenfassungen",
-  "start_url": "./",
-  "scope": "./",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#4F46E5",
-  "orientation": "portrait",
-  "icons": [
-    {
-      "src": "./icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "./icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "id": "/",
-  "shortcuts": [
-    {
-      "name": "Neue Notiz",
-      "short_name": "Neu",
-      "description": "Neue Sprachnotiz aufnehmen",
-      "url": "/#new",
-      "icons": [
-        {
-          "src": "icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Meine Einträge",
-      "short_name": "Einträge",
-      "description": "Gespeicherte Notizen öffnen",
-      "url": "/#entries",
-      "icons": [
-        {
-          "src": "icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "screenshots/shot1.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow"
-    },
-    {
-      "src": "screenshots/shot2.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ],
-  "categories": [
-    "productivity",
-    "utilities",
-    "notes"
-  ]
+"id": "/captain/",
+"name": "Sprach-Tagebuch Pro",
+"short_name": "Tagebuch",
+"description": "Schnelle Sprach-Notizen mit Offline-Modus.",
+"start_url": "/captain/",
+"scope": "/captain/",
+"display": "standalone",
+"background_color": "#ffffff",
+"theme_color": "#4F46E5",
+"orientation": "portrait",
+"icons": [
+{
+"src": "/captain/icon-192.png",
+"sizes": "192x192",
+"type": "image/png",
+"purpose": "any maskable"
+},
+{
+"src": "/captain/icon-512.png",
+"sizes": "512x512",
+"type": "image/png",
+"purpose": "any maskable"
+}
+],
+"shortcuts": [
+{
+"name": "Neue Notiz",
+"short_name": "Neu",
+"description": "Neue Sprachnotiz aufnehmen",
+"url": "/captain/#new",
+"icons": [
+{
+"src": "/captain/icon-192.png",
+"sizes": "192x192"
+}
+]
+},
+{
+"name": "Meine Einträge",
+"short_name": "Einträge",
+"description": "Gespeicherte Notizen öffnen",
+"url": "/captain/#entries",
+"icons": [
+{
+"src": "/captain/icon-192.png",
+"sizes": "192x192"
+}
+]
+}
+],
+"screenshots": [
+{
+"src": "/captain/screenshots/shot1.png",
+"sizes": "1080x1920",
+"type": "image/png",
+"form_factor": "narrow"
+},
+{
+"src": "/captain/screenshots/shot2.png",
+"sizes": "1080x1920",
+"type": "image/png",
+"form_factor": "narrow"
+}
+],
+"categories": [
+"productivity",
+"utilities",
+"notes"
+]
 }
