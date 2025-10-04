@@ -259,6 +259,18 @@
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
+        
+        .btn-action { /* NEUER STIL FÜR AKTIONEN UNTER DER ZUSAMMENFASSUNG */
+            background: #4F46E5;
+            color: white;
+            flex: 1;
+        }
+        
+        .btn-action:hover {
+            background: #4338CA;
+            box-shadow: 0 3px 10px rgba(79, 70, 229, 0.4);
+        }
+
 
         .btn-secondary {
             background: #F3F4F6;
@@ -840,6 +852,8 @@
 
             <div class="button-group">
                 <button class="btn-primary" id="saveBtn">Speichern</button>
+                <!-- NEU: NFC Schreibbutton -->
+                <button class="btn-action" id="writeNFCBtn" style="display:none;">Auf NFC-Tag speichern 📲</button>
                 <button class="btn-icon" id="copyBtn">Kopieren</button>
                 <button class="btn-icon" id="shareBtn">Teilen</button>
                 <button class="btn-secondary" id="editCancelBtn">Abbrechen</button>
@@ -966,6 +980,7 @@
             
             // NEU: NFC Button nur zeigen, wenn API da ist
             updateNFCButton();
+            updateNFCWriteButton(); // NEU: NFC Schreibbutton aktualisieren
 
             // NEU: Diagnose beim Start einklappen
             document.getElementById('diagnostics').classList.add('collapsed');
@@ -1074,6 +1089,7 @@
 
             document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
             document.getElementById('shareBtn').addEventListener('click', shareContent);
+            document.getElementById('summary').addEventListener('input', updateNFCWriteButton); // NEU: Beim Tippen den Button aktivieren
 
             document.getElementById('reformulateShorter').addEventListener('click', () => reformulate('kürzer'));
             document.getElementById('reformulateFormal').addEventListener('click', () => reformulate('formeller'));
@@ -1128,7 +1144,30 @@
             // NEU: NFC Listener
             const nfcBtn = document.getElementById('nfcBtn');
             if (nfcBtn) nfcBtn.addEventListener('click', readNFC);
+            
+            // NEU: NFC Write Listener
+            const writeNFCBtn = document.getElementById('writeNFCBtn');
+            if (writeNFCBtn) writeNFCBtn.addEventListener('click', writeNFC);
         }
+        
+        // NEUE FUNKTION: NFC Schreibbutton (Aktivierung)
+        function updateNFCWriteButton() {
+            const writeNFCBtn = document.getElementById('writeNFCBtn');
+            if (!writeNFCBtn) return;
+            
+            // Nur anzeigen, wenn Web NFC API da ist UND Text vorhanden ist
+            const isNFCSupported = ('NDEFReader' in window);
+            const hasText = document.getElementById('summary').value.trim().length > 0;
+            
+            if (isNFCSupported && hasText) {
+                writeNFCBtn.style.display = 'inline-flex';
+                writeNFCBtn.disabled = false;
+            } else {
+                writeNFCBtn.style.display = 'none';
+                writeNFCBtn.disabled = true;
+            }
+        }
+
 
         // Dummy-Funktion für SpeechRecognition (wird nicht mehr primär genutzt, aber zur Sicherheit behalten)
         function initSpeechRecognition() {} 
@@ -1141,6 +1180,60 @@
                 nfcBtn.style.display = 'inline-flex';
             } else if (nfcBtn) {
                 nfcBtn.style.display = 'none';
+            }
+        }
+        
+        // NEUE FUNKTION: NFC Schreib-Logik
+        async function writeNFC() {
+            if (!('NDEFReader' in window)) {
+                showError('NFC-Schreiben wird von diesem Gerät/Browser nicht unterstützt (Web NFC API fehlt).');
+                return;
+            }
+
+            const textToWrite = document.getElementById('summary').value.trim();
+            if (!textToWrite) {
+                showError('Bitte erstellen Sie zuerst eine Zusammenfassung oder geben Sie Text ein.');
+                return;
+            }
+            
+            const btn = document.getElementById('writeNFCBtn');
+            const originalText = btn.textContent;
+            btn.textContent = 'Bereit zum Scannen...';
+            btn.disabled = true;
+
+            try {
+                const ndef = new NDEFReader();
+
+                // Erstelle den NDEF-Datensatz (Text Record)
+                const encoder = new TextEncoder();
+                const data = encoder.encode(textToWrite);
+                
+                const record = {
+                    recordType: "text",
+                    data: data,
+                    lang: "de-DE",
+                };
+
+                // Schreibe den Datensatz auf den Tag
+                await ndef.write({ records: [record] });
+
+                showSuccess('Notiz erfolgreich auf NFC-Tag gespeichert!');
+                
+            } catch (error) {
+                let errMsg = error.message;
+                if (error.name === 'NotAllowedError') {
+                    errMsg = 'NFC-Zugriff verweigert oder Tag nicht rechtzeitig gescannt.';
+                } else if (error.name === 'NotSupportedError') {
+                    errMsg = 'Tag ist schreibgeschützt oder hat nicht genug Speicher.';
+                } else if (error.name === 'UnknownError') {
+                    errMsg = 'Ein unbekannter Fehler ist beim Schreiben aufgetreten.';
+                }
+                showError(`Fehler beim Schreiben: ${errMsg}`);
+                
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+                updateNFCWriteButton(); // Aktualisiert den Status, falls Text da ist
             }
         }
         
@@ -1231,9 +1324,6 @@
             const file = e.target.files && e.target.files[0];
             if (!file) return;
 
-            // currentImageBase64 wird TEMPORÄR FÜR DEN KI-CALL gesetzt.
-            // Es wird auf NULL gesetzt, sobald die KI-Analyse fertig ist (siehe reader.onload -> finally block).
-
             // Optional: kleine Vorschau zeigen (kannst du auch weglassen)
             const imagePreview = document.getElementById('imagePreview');
             const reader = new FileReader();
@@ -1242,7 +1332,7 @@
                 imagePreview.src = event.target.result;
                 imagePreview.style.display = 'block';
                 
-                // Base64 URI temporär speichern, falls für OpenAI benötigt (wird nach KI-Call gelöscht)
+                // Base64 URI temporär speichern, falls für KI benötigt (wird nach KI-Call gelöscht)
                 currentImageBase64 = event.target.result; 
                 
                 // KI-Beschreibung holen
@@ -1663,6 +1753,8 @@
                 
                 currentTags = [];
                 updateCurrentTags();
+                updateNFCWriteButton(); // NEU: Schreibbutton aktivieren
+                
             } catch (error) {
                 showError('Fehler beim Erstellen der Notiz: ' + error.message);
                 document.getElementById('loading').classList.remove('show');
@@ -1696,6 +1788,7 @@
                 document.getElementById('summary').value = reformulated;
                 document.getElementById('reformulateLoading').classList.remove('show');
                 showSuccess('Erfolgreich neu formuliert!');
+                updateNFCWriteButton(); // NEU: Schreibbutton aktualisieren
             } catch (error) {
                 showError('Fehler beim Neu-Formulieren: ' + error.message);
                 document.getElementById('reformulateLoading').classList.remove('show');
@@ -2441,6 +2534,8 @@
             updateCurrentTags();
             document.getElementById('error').classList.remove('show');
             document.getElementById('success').classList.remove('show');
+            
+            updateNFCWriteButton(); // Schreibbutton ausblenden
         }
 
         if ('serviceWorker' in navigator) {
@@ -2512,13 +2607,6 @@ navigator.serviceWorker.addEventListener('controllerchange', () => {
             // Konvertierung für Multimodal-Payloads
             let imageParts = null;
             if (imageFile) {
-                // Konvertiere die File-API-Datei in Base64 (wird im anderen Script erledigt)
-                // HINWEIS: Bei der Bildanalyse ist imageFile eine File-Objekt, 
-                // beim Speichern verwenden wir currentImageBase64 (Data-URL).
-                // Da wir callLLMAPI nur direkt nach dem Upload (mit imageFile) 
-                // oder beim Reformulieren/Zusammenfassen (ohne Bild) aufrufen, 
-                // ist die Logik hier konsistent.
-                
                 // Für Gemini und Claude wird die Base64-Version benötigt
                 const base64Url = await new Promise(resolve => {
                     const reader = new FileReader();
