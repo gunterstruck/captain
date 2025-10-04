@@ -1,8 +1,8 @@
 {
   "id": "/captain/",
-  "name": "Sprach-Tagebuch Pro",
-  "short_name": "Tagebuch",
-  "description": "Schnelle Sprach-Notizen mit Offline-Modus.",
+  "name": "Synaptic Pro",
+  "short_name": "Synaptic",
+  "description": "Schnelle Notizen mit Offline-Modus.",
   "start_url": "/captain/",
   "scope": "/captain/",
   "display": "standalone",
