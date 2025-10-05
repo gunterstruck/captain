@@ -10,6 +10,8 @@
 
     <meta name="description" content="Sprach-Tagebuch mit KI-Zusammenfassungen und Bild-Notizen">
     <title>Synaptic Pro</title>
+    <!-- ✅ NEU: Markdown-Bibliothek für Tabellen-Rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -170,6 +172,14 @@
             background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
             animation: pulse 1.5s infinite;
         }
+        
+        /* ✅ NEU: Aufnahmestil für den Diktier-Button im Modal */
+        #dictateEditBtn.recording {
+            background: #EF4444;
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
 
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
@@ -402,18 +412,6 @@
             color: white;
         }
 
-        .reformulate-section {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 2px solid #F3F4F6;
-        }
-
-        .reformulate-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
         .entries-section {
             /* Das margin-bottom von 12px wird bereits oben im Sammelselektor angewendet */
         }
@@ -618,6 +616,27 @@
             padding: 6px 12px;
             font-size: 12px;
         }
+        
+        /* ✅ NEU: CSS-Stile für gerenderte Tabellen */
+        .entry-text table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        .entry-text th, .entry-text td {
+            border: 1px solid #E5E7EB;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        .entry-text th {
+            background-color: #F3F4F6;
+            font-weight: 600;
+        }
+        .entry-text tr:nth-child(even) {
+            background-color: #F9FAFB;
+        }
+
 
         .delete-btn {
             background: #EF4444;
@@ -902,16 +921,6 @@
                 <div class="tag-list" id="currentTags"></div>
             </div>
 
-            <div class="reformulate-section">
-                <label>Neu formulieren:</label>
-                <div class="reformulate-buttons">
-                    <button class="btn-icon" id="reformulateShorter">Kürzer</button>
-                    <button class="btn-icon" id="reformulateFormal">Formeller</button>
-                    <button class="btn-icon" id="reformulateCasual">Lockerer</button>
-                </div>
-                <div class="loading" id="reformulateLoading" role="status">KI formuliert um...</div>
-            </div>
-
             <div class="button-group">
                 <button class="btn-primary" id="saveBtn">Speichern</button>
                 <!-- NEU: NFC Schreibbutton -->
@@ -963,7 +972,11 @@
                 </div>
                 <div class="tag-list" id="editTags"></div>
             </div>
+             <!-- ✅ NEU: Ladeanzeige für Diktat-Verarbeitung -->
+            <div class="loading" id="editDictateLoading" role="status">KI verarbeitet Diktat...</div>
             <div class="button-group">
+                 <!-- ✅ NEU: Button zum Diktieren von Änderungen -->
+                <button class="btn-icon" id="dictateEditBtn">🎤 Änderung diktieren</button>
                 <button class="btn-primary" id="saveEditBtn">Speichern</button>
                 <button class="btn-secondary" id="cancelEditBtn">Abbrechen</button>
             </div>
@@ -1009,6 +1022,9 @@
     <script>
         // MediaRecorder State
         let __mr, __mrStream, __mrChunks = [], __mrRecording = false;
+        
+        // ✅ NEU: State für Diktat im Edit-Modal
+        let isEditDictating = false;
 
         let recognition; // recognition bleibt, aber wird nicht mehr primär genutzt
         let isRecording = false;
@@ -1153,10 +1169,6 @@
             document.getElementById('shareBtn').addEventListener('click', shareContent);
             document.getElementById('summary').addEventListener('input', updateNFCWriteButton); // NEU: Beim Tippen den Button aktivieren
 
-            document.getElementById('reformulateShorter').addEventListener('click', () => reformulate('kürzer'));
-            document.getElementById('reformulateFormal').addEventListener('click', () => reformulate('formeller'));
-            document.getElementById('reformulateCasual').addEventListener('click', () => reformulate('lockerer'));
-
             document.getElementById('toggleSelectionBtn').addEventListener('click', toggleSelectionMode);
             
             document.getElementById('summarizeSelectedBtn').addEventListener('click', summarizeSelected);
@@ -1173,6 +1185,9 @@
             document.getElementById('editNewTag').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') addEditTag();
             });
+            
+            // ✅ NEU: Event Listener für den Diktier-Button im Modal
+            document.getElementById('dictateEditBtn').addEventListener('click', toggleEditDictation);
 
             document.getElementById('closeBatchSummaryModal').addEventListener('click', closeBatchSummaryModal);
             document.getElementById('closeBatchSummaryBtn').addEventListener('click', closeBatchSummaryModal);
@@ -1459,34 +1474,22 @@
 
         // NEU: Zentrale Umschaltfunktion für die Aufnahme
         function toggleRecording() {
-            const hasMediaRecorder = !!(navigator.mediaDevices && window.MediaRecorder);
-
             if (isRecording) {
-                if (hasMediaRecorder && __mrRecording) {
-                    stopMediaRecorder();
-                } else {
-                    resetForm();
-                }
-
+                stopMediaRecorder();
+                isRecording = false;
+                updateRecordButton('Bereit zur Aufnahme');
             } else {
                 resetForm();
-                if (hasMediaRecorder) {
-                    startMediaRecorder();
-                } else {
-                    const audioInput = document.getElementById('audioInput');
-                    if (audioInput) {
-                        try {
-                            if(window.__memotag?.diag) __memotag.diag.diagLog('Klick: Mobile Fallback (Audio Upload)'); 
-                            audioInput.click();
-                        } catch (e) {
-                            showError('Mikrofonzugriff nicht möglich. Bitte Audio direkt hochladen.');
-                        }
+                startMediaRecorder().then(success => {
+                    if (success) {
+                        isRecording = true;
+                        updateRecordButton('Aufnahme läuft...');
                     }
-                }
+                });
             }
         }
         
-        async function startMediaRecorder() {
+        async function startMediaRecorder(onStopCallback = processAudioRecording) {
             try{
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 __mrStream = stream;
@@ -1498,60 +1501,48 @@
                 if (!mime) {
                     showError('Ihr Browser unterstützt keine MediaRecorder-Formate für Audio.');
                     stopStream(__mrStream);
-                    return;
+                    return false;
                 }
 
                 __mr = new MediaRecorder(stream, { mimeType: mime });
                 __mrChunks = [];
                 __mr.ondataavailable = e => { 
-                    if(e.data && e.data.size > 0) {
-                        __mrChunks.push(e.data); 
-                        try { if(window.__memotag?.diag) __memotag.diag.diagLog(`Recorder: Chunk (${e.data.size} Bytes)`); } catch(_) {}
-                    }
+                    if(e.data && e.data.size > 0) __mrChunks.push(e.data); 
                 };
                 
                 __mr.onerror = (e) => {
-                    showError('Aufnahmefehler: ' + e.error.name);
-                    try { if(window.__memotag?.diag) __memotag.diag.diagError('MediaRecorder Fehler: ' + e.error.name); } catch(_) {}
+                    showError('Aufnahmefehler: ' + e.error.name, isEditDictating ? 'editError' : 'error');
                     stopStream(__mrStream);
                     __mrRecording = false;
                     isRecording = false;
+                    isEditDictating = false;
                     updateRecordButton('Fehler.');
+                    document.getElementById('dictateEditBtn').classList.remove('recording');
                 };
 
-                __mr.onstop = processAudioRecording;
+                __mr.onstop = onStopCallback;
 
                 __mr.start(500); 
                 __mrRecording = true;
-                isRecording = true;
-                updateRecordButton('Aufnahme läuft...');
-                
-                if (document.getElementById('locationPermission')?.checked) {
-                    getCurrentLocation();
-                }
+                return true;
 
-                try { if(window.__memotag?.diag) __memotag.diag.diagLog('Recorder gestartet: ' + mime); } catch(_) {}
-                
-                try { if(window.__memotag?.diag) __memotag.diag.startMicMeter(); } catch(_) {}
-
-
-            }catch(err){
+            } catch(err){
                 const errMsg = err.name === 'NotAllowedError' ? 'Mikrofonzugriff verweigert.' : (err.message || err);
-                showError('Zugriff auf Mikrofon fehlgeschlagen: ' + errMsg);
-                try { if(window.__memotag?.diag) window.__memotag.diag.diagError('Mic-Zugriff Fehler: ' + errMsg); } catch(_) {}
+                showError('Zugriff auf Mikrofon fehlgeschlagen: ' + errMsg, isEditDictating ? 'editError' : 'error');
                 updateRecordButton('Bereit zur Aufnahme');
+                return false;
             }
         }
         
         function stopMediaRecorder() {
             try{ 
-                __mr.stop(); 
-                try { if(window.__memotag?.diag) __memotag.diag.diagLog('Recorder Stopp-Kommando gesendet. Warte auf onstop Event...'); } catch(_) {}
-                try { if(window.__memotag?.diag) __memotag.diag.stopMicMeter(); } catch(_) {} // Mic Meter stoppen
-                updateRecordButton('Verarbeite...');
+                if (__mr && __mr.state === 'recording') {
+                    __mr.stop(); 
+                }
             }catch(_){}
             stopStream(__mrStream);
-            isRecording = false;
+            __mrRecording = false;
+            // Die globalen isRecording states werden in den jeweiligen toggle-Funktionen gesetzt
         }
 
         async function processAudioRecording() {
@@ -1560,17 +1551,11 @@
                 const blob = new Blob(__mrChunks, { type: blobType });
                 const file = new File([blob], 'aufnahme.' + (blobType.includes('ogg') ? 'ogg' : 'webm'), { type: blobType });
                 
-                try { if(window.__memotag?.diag) __memotag.diag.diagLog(`Recorder Stopp: Datei (${file.name}) bereit. Größe: ${(file.size / 1024 / 1024).toFixed(2)} MB`); } catch(_) {}
-
                 await processAudioFile(file);
 
             }catch(err){
-                const errorMessage = 'Verarbeitung fehlgeschlagen: ' + (err.message || err);
-                showError(errorMessage);
-                try { if(window.__memotag?.diag) __memotag.diag.diagError(errorMessage); } catch(_) {}
+                showError('Verarbeitung fehlgeschlagen: ' + (err.message || err));
                 resetForm();
-            } finally {
-                __mrRecording = false;
             }
         }
         
@@ -1592,8 +1577,6 @@
                 transcript = await transcribeAudio(file, apiKey, provider);
                 currentTranscript = transcript || '';
                 
-                try { if(window.__memotag?.diag) __memotag.diag.diagLog('Transkription erfolgreich abgeschlossen.'); } catch(_) {}
-
                 const t = document.getElementById('transcript');
                 if (t) t.value = currentTranscript;
                 const ts = document.getElementById('transcriptSection');
@@ -1602,7 +1585,6 @@
             } catch(err) {
                  const errorMessage = 'Transkription fehlgeschlagen: ' + (err.message || err);
                 showError(errorMessage);
-                try { if(window.__memotag?.diag) __memotag.diag.diagError(errorMessage); } catch(_) {}
                 resetForm();
                 return;
             }
@@ -1617,24 +1599,25 @@
             const file = e.target.files && e.target.files[0];
             if (!file) return;
 
-            try { if(window.__memotag?.diag) __memotag.diag.diagLog('Audio-Datei ausgewählt (' + file.name + ')'); } catch(_) {}
-
-            await processAudioFile(file);
-
+            // Für mobile Geräte, die nur Upload können
+            if (!window.MediaRecorder) {
+                await processAudioFile(file);
+            }
         }
 
-        function initMediaRecorderFallback(){
-             try { if(window.__memotag?.diag) window.__memotag.diag.diagLog('Init: MediaRecorder Fallback'); } catch(_) {}
-        }
-
+        function initMediaRecorderFallback(){ }
         function initIOSFallback() {
-             try { if(window.__memotag?.diag) __memotag.diag.diagLog('Init: iOS Fallback (Status-Hinweis)'); } catch(_) {}
             const iosHint = document.getElementById('iosHint');
-            if (iosHint) {
-                const hasMediaRecorder = !!(navigator.mediaDevices && window.MediaRecorder);
-                if (!hasMediaRecorder) {
-                    iosHint.style.display = 'block';
-                }
+            const audioInput = document.getElementById('audioInput');
+            if (iosHint && !window.MediaRecorder) {
+                iosHint.style.display = 'block';
+                // Der Haupt-Aufnahme-Button löst bei iOS direkt den File-Picker aus
+                document.getElementById('recordBtn').addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (!isRecording) { // Nur auslösen, wenn nicht schon eine "Aufnahme" läuft
+                        audioInput.click();
+                    }
+                });
             }
         }
         
@@ -1682,7 +1665,6 @@
                  if (imgBtn) imgBtn.disabled = false;
                  if (nfcBtn) nfcBtn.disabled = false;
             }
-
         }
 
 
@@ -1794,39 +1776,6 @@
                 try { if(window.__memotag?.diag) __memotag.diag.diagError('Fehler in summarize-Funktion: ' + error.message); } catch(_) {}
                 document.getElementById('loading').classList.remove('show');
                 resetForm();
-            }
-        }
-
-        async function reformulate(style) {
-            const summary = document.getElementById('summary').value.trim();
-            if (!summary) { showError('Keine Zusammenfassung vorhanden.'); return; }
-
-            const apiKey = document.getElementById('apiKey').value.trim();
-            const provider = document.getElementById('apiProvider').value;
-            
-            if (!apiKey) { showError('Bitte gib einen API-Schlüssel ein.'); return; }
-
-            document.getElementById('reformulateLoading').classList.add('show');
-            document.getElementById('success').classList.remove('show');
-
-            try {
-                let prompt = '';
-                if (style === 'kürzer') {
-                    prompt = `Formuliere den folgenden Text deutlich kürzer (max. 50% der Originallänge), aber behalte alle wichtigen Informationen:\n\n${summary}`;
-                } else if (style === 'formeller') {
-                    prompt = `Formuliere den folgenden Text formeller und professioneller:\n\n${summary}`;
-                } else if (style === 'lockerer') {
-                    prompt = `Formuliere den folgenden Text lockerer und umgangssprachlicher:\n\n${summary}`;
-                }
-
-                let reformulated = await callLLMAPI(prompt, apiKey, provider, 0, null);
-                document.getElementById('summary').value = reformulated;
-                document.getElementById('reformulateLoading').classList.remove('show');
-                showSuccess('Erfolgreich neu formuliert!');
-                updateNFCWriteButton();
-            } catch (error) {
-                showError('Fehler beim Neu-Formulieren: ' + error.message);
-                document.getElementById('reformulateLoading').classList.remove('show');
             }
         }
 
@@ -2010,48 +1959,97 @@
         }
 
         function closeEditModal() {
+            if(isEditDictating) {
+                stopMediaRecorder();
+                isEditDictating = false;
+            }
+            document.getElementById('dictateEditBtn').classList.remove('recording');
             document.getElementById('editModal').classList.remove('show');
             editingEntryId = null;
             currentTags = [];
         }
-
-        async function reformulateEntry(id) {
-            const entry = getEntries().find(e => e.id === id);
-            if (!entry) return;
-
-            const style = prompt('Wie soll neu formuliert werden? (kürzer/formeller/lockerer)');
-            if (!style || !['kürzer', 'formeller', 'lockerer'].includes(style.toLowerCase())) return;
-
-            const apiKey = document.getElementById('apiKey').value.trim();
-            const provider = document.getElementById('apiProvider').value;
-            
-            if (!apiKey) { showError('Bitte gib einen API-Schlüssel ein.'); return; }
-
-            showSuccess('Formuliere um...');
-
-            try {
-                let prompt = '';
-                if (style.toLowerCase() === 'kürzer') {
-                    prompt = `Formuliere den folgenden Text deutlich kürzer (max. 50% der Originallänge), aber behalte alle wichtigen Informationen:\n\n${entry.text}`;
-                } else if (style.toLowerCase() === 'formeller') {
-                    prompt = `Formuliere den folgenden Text formeller und professioneller:\n\n${entry.text}`;
-                } else if (style.toLowerCase() === 'lockerer') {
-                    prompt = `Formuliere den folgenden Text lockerer und umgangssprachlicher:\n\n${entry.text}`;
+        
+        // ✅ NEU: Diktier-Logik für das Bearbeitungs-Modal
+        async function toggleEditDictation() {
+            const btn = document.getElementById('dictateEditBtn');
+            if (isEditDictating) {
+                stopMediaRecorder();
+                isEditDictating = false;
+                btn.classList.remove('recording');
+                btn.textContent = '🎤 Änderung diktieren';
+            } else {
+                const recordingStarted = await startMediaRecorder(processEditDictation);
+                if (recordingStarted) {
+                    isEditDictating = true;
+                    btn.classList.add('recording');
+                    btn.textContent = '⏹️ Aufnahme stoppen';
                 }
-
-                let reformulated = await callLLMAPI(prompt, apiKey, provider, 0, null);
-
-                const entries = getEntries();
-                const entryIndex = entries.findIndex(e => e.id === id);
-                if (entryIndex > -1) {
-                    entries[entryIndex].text = reformulated;
-                    saveEntries(entries);
-                    showSuccess('Erfolgreich neu formuliert!');
-                }
-            } catch (error) {
-                showError('Fehler beim Neu-Formulieren: ' + error.message);
             }
         }
+
+        async function processEditDictation() {
+            isEditDictating = false;
+            const btn = document.getElementById('dictateEditBtn');
+            btn.classList.remove('recording');
+            btn.textContent = '🎤 Änderung diktieren';
+
+            try {
+                const blobType = __mr && __mr.mimeType ? __mr.mimeType : 'audio/webm';
+                const blob = new Blob(__mrChunks, { type: blobType });
+                const file = new File([blob], 'diktat.' + (blobType.includes('ogg') ? 'ogg' : 'webm'), { type: blobType });
+                
+                await applyDictatedChanges(file);
+
+            } catch (err) {
+                showError('Verarbeitung des Diktats fehlgeschlagen: ' + (err.message || err), 'editError');
+            }
+        }
+        
+        async function applyDictatedChanges(audioFile) {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const provider = document.getElementById('apiProvider').value;
+            if (!apiKey) {
+                showError('API-Schlüssel benötigt.', 'editError');
+                return;
+            }
+
+            const loadingEl = document.getElementById('editDictateLoading');
+            loadingEl.classList.add('show');
+            
+            try {
+                // 1. Diktat transkribieren
+                const instructionText = await transcribeAudio(audioFile, apiKey, provider);
+                if (!instructionText) {
+                    throw new Error("Transkription ergab keinen Text.");
+                }
+
+                // 2. KI anweisen, den Text zu ändern
+                const originalText = document.getElementById('editText').value;
+                const prompt = `Du bist ein intelligenter Text-Editor. Modifiziere den "Originaltext" basierend auf der diktierten "Anweisung". Gib NUR den finalen, vollständigen und geänderten Text zurück, ohne zusätzliche Kommentare.
+
+                Originaltext:
+                ---
+                ${originalText}
+                ---
+
+                Anweisung:
+                ---
+                ${instructionText}
+                ---
+
+                Finaler Text:`;
+
+                const modifiedText = await callLLMAPI(prompt, apiKey, provider);
+                document.getElementById('editText').value = modifiedText;
+                showSuccess('Text per Diktat aktualisiert!', 'editSuccess');
+
+            } catch(error) {
+                showError('Fehler bei der diktierten Änderung: ' + error.message, 'editError');
+            } finally {
+                loadingEl.classList.remove('show');
+            }
+        }
+
 
         async function copyEntry(id) {
             const entry = getEntries().find(e => e.id === id);
@@ -2104,6 +2102,9 @@
             const container = document.getElementById('entries');
             container.innerHTML = '';
             
+            // ✅ NEU: Initialisiere den Markdown-Converter
+            const converter = new showdown.Converter({ tables: true, simpleLineBreaks: true });
+
             if (entries.length === 0) {
                 const empty = document.createElement('div');
                 empty.className = 'empty-state';
@@ -2172,9 +2173,12 @@
 
                 const textEl = document.createElement('div');
                 textEl.className = 'entry-text';
-                textEl.textContent = entry.text;
+                
+                // ✅ NEU: Konvertiere Markdown zu HTML
+                const html = converter.makeHtml(entry.text || '');
+                textEl.innerHTML = html;
 
-                const isLongText = entry.text.split('\n').length > 5 || entry.text.length > 300;
+                const isLongText = (entry.text || '').split('\n').length > 5 || (entry.text || '').length > 300;
                 if (isLongText) {
                     const wrapper = document.createElement('div');
                     wrapper.className = 'entry-text-wrapper';
@@ -2195,7 +2199,6 @@
                 
                 const btnConfigs = [
                     ['Bearbeiten', 'btn-icon', () => editEntry(entry.id)],
-                    ['Neu formulieren', 'btn-icon', () => reformulateEntry(entry.id)],
                     ['Kopieren', 'btn-icon', () => copyEntry(entry.id)],
                     ['Teilen', 'btn-icon', () => shareEntry(entry.id)]
                 ];
@@ -2210,7 +2213,10 @@
                     const btn = document.createElement('button');
                     btn.className = className;
                     btn.textContent = label;
-                    btn.addEventListener('click', handler);
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Verhindert, dass der Klick auf den Button die Karte auf-/zuklappt
+                        handler();
+                    });
                     actions.appendChild(btn);
                 });
 
@@ -2611,19 +2617,41 @@
         function handleAPIResponse(provider, data) {
             if (provider === 'anthropic') {
                 const textBlock = data.content?.find(block => block.type === 'text');
-                return textBlock?.text || 'Fehler beim Parsen der Anthropic-Antwort.';
+                return textBlock?.text || 'Fehler: Anthropic-Antwort konnte nicht gelesen werden.';
             } else if (provider === 'openai') {
-                return data.choices?.[0]?.message?.content || 'Fehler beim Parsen der OpenAI-Antwort.';
+                return data.choices?.[0]?.message?.content || 'Fehler: OpenAI-Antwort konnte nicht gelesen werden.';
             } else if (provider === 'gemini') {
+                // Fall 1: Die Anfrage wurde direkt wegen eines Problems mit dem Prompt blockiert.
                 if (data.promptFeedback?.blockReason) {
-                    // ✅ NEU: Detaillierte Fehlermeldung mit Diagnose-Log
                     const reason = data.promptFeedback.blockReason;
-                    try { if(window.__memotag?.diag) __memotag.diag.diagError(`Gemini-Antwort blockiert. Grund: ${reason}`); } catch(_) {}
-                    return `Fehler: Gemini-Antwort blockiert (Grund: ${reason}).`;
+                    const userMessage = "Die KI hat die Anfrage wegen Sicherheitsbedenken blockiert. Versuchen Sie eine andere Formulierung.";
+                    try { if(window.__memotag?.diag) __memotag.diag.diagError(`Gemini-Anfrage blockiert. Grund: ${reason}`); } catch(_) {}
+                    return `Fehler: ${userMessage}`; 
                 }
-                return data.candidates?.[0]?.content?.parts?.[0]?.text || 'Fehler beim Parsen der Gemini-Antwort.';
+
+                // Fall 2: Es gibt Kandidaten, aber der erste wurde gefiltert.
+                const candidate = data.candidates?.[0];
+                if (candidate) {
+                    const finishReason = candidate.finishReason;
+                    if (finishReason && finishReason !== 'STOP' && finishReason !== 'MAX_TOKENS') {
+                        const userMessage = `Die KI hat die Antwort aus Sicherheitsgründen gestoppt (Grund: ${finishReason}).`;
+                        try { if(window.__memotag?.diag) __memotag.diag.diagError(`Gemini-Antwort gefiltert. Grund: ${finishReason}`); } catch(_) {}
+                        return `Fehler: ${userMessage}`;
+                    }
+
+                    // Normalfall: Text ist vorhanden.
+                    const text = candidate.content?.parts?.[0]?.text;
+                    if (text) {
+                        return text;
+                    }
+                }
+                
+                // Fall 3: Keine Kandidaten vorhanden oder die Struktur ist völlig unerwartet.
+                try { if(window.__memotag?.diag) __memotag.diag.diagError(`Gemini: Unerwartete Antwortstruktur: ${JSON.stringify(data)}`); } catch(_) {}
+                return 'Fehler beim Parsen der Gemini-Antwort (kein Inhalt gefunden).';
+
             }
-            return 'Unbekannter KI-Anbieter.';
+            return 'Fehler: Unbekannter KI-Anbieter.';
         }
         
         function dataURLtoParts(dataURL) {
@@ -3031,3 +3059,4 @@ function initMediaRecorderFallback(){
 </script>
 </body>
 </html>
+
