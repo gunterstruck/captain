@@ -997,6 +997,7 @@
         let activeTagFilter = null;
         let confirmCallback = null;
         let isApiSetupExpanded = false;
+        let nfcStatusTimer = null;
 
         const DIARY_KEY = 'diary_entries_v2';
         const isNFCSupported = 'NDEFReader' in window;
@@ -1209,34 +1210,43 @@
         }
         
         async function writeTextToNFC(textToWrite) {
-          if (!isNFCSupported) {
-            showError('NFC nicht unterstützt.');
-            return false;
-          }
+            if (nfcStatusTimer) clearTimeout(nfcStatusTimer);
 
-          if (!textToWrite) {
-            showError('Kein Text zum Schreiben auf den NFC-Tag vorhanden.');
-            return false;
-          }
+            if (!isNFCSupported) {
+                showError('NFC wird auf diesem Gerät nicht unterstützt.');
+                return false;
+            }
 
-          try {
-            const ndef = new NDEFReader();
-            showSuccess('Halte den NFC-Tag an dein Gerät...');
-            await Promise.race([
-              ndef.write(textToWrite),
-              new Promise((_, reject) =>
-                setTimeout(() => reject(new Error("Timeout: Kein Tag erkannt.")), 10000)
-              )
-            ]);
-            showSuccess('Daten erfolgreich geschrieben!');
-            return true;
-          } catch (error) {
-            let errMsg = `Fehler beim NFC-Schreiben: ${error.message}`;
-            if (error.name === 'NotAllowedError') errMsg = 'NFC-Zugriff verweigert oder Tag nicht rechtzeitig gescannt.';
-            else if (error.name === 'NotSupportedError') errMsg = 'Tag ist schreibgeschützt oder hat nicht genug Speicher.';
-            showError(errMsg);
-            return false;
-          }
+            if (!textToWrite) {
+                showError('Kein Text zum Schreiben auf den NFC-Tag vorhanden.');
+                return false;
+            }
+
+            try {
+                const ndef = new NDEFReader();
+                showSuccess('Halte den NFC-Tag an dein Gerät...');
+
+                nfcStatusTimer = setTimeout(() => {
+                    showSuccess('Suche immer noch nach dem Tag. Bitte halte ihn ruhig an die Rückseite deines Geräts.');
+                    nfcStatusTimer = setTimeout(() => {
+                        showSuccess('Das dauert länger als erwartet. Ist NFC aktiviert?');
+                    }, 7000); // 5 + 7 = 12 seconds total
+                }, 5000);
+
+                await ndef.write(textToWrite);
+
+                if (nfcStatusTimer) clearTimeout(nfcStatusTimer);
+                showSuccess('Daten erfolgreich auf NFC-Tag geschrieben!');
+                return true;
+
+            } catch (error) {
+                if (nfcStatusTimer) clearTimeout(nfcStatusTimer);
+                let errMsg = `Fehler beim NFC-Schreiben: ${error.message}`;
+                if (error.name === 'NotAllowedError') errMsg = 'NFC-Zugriff verweigert oder Tag nicht rechtzeitig gescannt.';
+                else if (error.name === 'NotSupportedError') errMsg = 'Tag ist schreibgeschützt oder hat nicht genug Speicher.';
+                showError(errMsg);
+                return false;
+            }
         }
 
         async function prepareTextForNFC(text) {
@@ -1410,61 +1420,110 @@
              document.getElementById('status').textContent = 'NFC-Inhalt erfasst. Erstelle Zusammenfassung...';
              await summarize(currentTranscript, null);
         }
+        
+        // Helper function to resize images before uploading
+        async function resizeImage(file, max_width_or_height = 1024) {
+            return new Promise((resolve, reject) => {
+                const image = new Image();
+                image.src = URL.createObjectURL(file);
+                image.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = image.width;
+                    let height = image.height;
+
+                    if (width > height) {
+                        if (width > max_width_or_height) {
+                            height *= max_width_or_height / width;
+                            width = max_width_or_height;
+                        }
+                    } else {
+                        if (height > max_width_or_height) {
+                            width *= max_width_or_height / height;
+                            height = max_width_or_height;
+                        }
+                    }
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(image, 0, 0, width, height);
+
+                    canvas.toBlob((blob) => {
+                        resolve(new File([blob], file.name, {
+                            type: file.type,
+                            lastModified: Date.now()
+                        }));
+                    }, file.type, 0.9); // 0.9 quality
+                };
+                image.onerror = (error) => reject(error);
+            });
+        }
+
 
         async function handleImageFileSelection(e) {
-            const file = e.target.files && e.target.files[0];
+            let file = e.target.files && e.target.files[0];
             if (!file) return;
 
             const imagePreview = document.getElementById('imagePreview');
-            const reader = new FileReader();
+            
+            try {
+                updateRecordButton('Bild wird verkleinert...');
+                file = await resizeImage(file);
+                
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    imagePreview.src = event.target.result;
+                    imagePreview.style.display = 'block';
+                    
+                    currentImageBase64 = event.target.result; 
+                    
+                    document.getElementById('transcriptTitle').textContent = 'Bild-Beschreibung (Wird automatisch verarbeitet...)';
+                    document.getElementById('transcriptSection').classList.add('show');
+                    updateRecordButton('Bild wird analysiert...');
+                    document.getElementById('status').classList.add('processing');
+                    
+                    try {
+                        await summarize(null, file);
+                    } finally {
+                        document.getElementById('status').classList.remove('processing');
+                        imagePreview.src = '';
+                        imagePreview.style.display = 'none';
+                        currentImageBase64 = null; 
+                    }
+                    
+                    document.getElementById('transcriptSection').classList.remove('show');
+                };
 
-            reader.onload = async (event) => {
-                imagePreview.src = event.target.result;
-                imagePreview.style.display = 'block';
-                
-                currentImageBase64 = event.target.result; 
-                
-                document.getElementById('transcriptTitle').textContent = 'Bild-Beschreibung (Wird automatisch verarbeitet...)';
-                document.getElementById('transcriptSection').classList.add('show');
-                document.getElementById('status').textContent = 'Bild hochgeladen. Erstelle Beschreibung...';
-                document.getElementById('status').classList.add('processing');
-                
-                try {
-                    await summarize(null, file);
-                } finally {
-                    document.getElementById('status').classList.remove('processing');
-                    imagePreview.src = '';
-                    imagePreview.style.display = 'none';
-                    currentImageBase64 = null; 
-                }
-                
-                document.getElementById('transcriptSection').classList.remove('show');
-            };
+                reader.onerror = () => {
+                    showError('Fehler beim Lesen der Datei.');
+                    resetForm();
+                };
+                reader.readAsDataURL(file);
 
-            reader.onerror = () => {
-                showError('Fehler beim Lesen der Datei.');
+            } catch (error) {
+                showError('Fehler bei der Bildverarbeitung: ' + error.message);
                 resetForm();
-            };
-
-            reader.readAsDataURL(file);
+            }
         }
         
         async function handlePhotoToNfc(e) {
-            const file = e.target.files && e.target.files[0];
+            let file = e.target.files && e.target.files[0];
             if (!file) return;
 
-            updateRecordButton('Foto wird analysiert...', 'processing');
-            showSuccess('Foto wird analysiert, bitte warten...');
+            updateRecordButton('Foto wird verarbeitet...', 'processing');
+            showSuccess('Foto wird verarbeitet, bitte warten...');
 
-            const apiKey = document.getElementById('apiKey').value.trim();
-            const provider = document.getElementById('apiProvider').value;
-            if (!apiKey) {
-                showError('Bitte gib einen API-Schlüssel ein.');
-                resetForm();
-                return;
-            }
+            try {
+                file = await resizeImage(file);
 
-            const extractionPrompt = `Analysiere das Bild. Extrahiere die Werte für die folgenden Merkmale. Gib deine Antwort NUR als Liste von "Merkmal:Wert"-Paaren zurück, wobei jedes Paar in einer neuen Zeile steht. Lasse den Wert leer, wenn er nicht gefunden wird. Füge KEINE zusätzlichen Erklärungen, Kommentare oder Formatierungen wie Markdown hinzu.
+                const apiKey = document.getElementById('apiKey').value.trim();
+                const provider = document.getElementById('apiProvider').value;
+                if (!apiKey) {
+                    showError('Bitte gib einen API-Schlüssel ein.');
+                    resetForm();
+                    return;
+                }
+
+                const extractionPrompt = `Analysiere das Bild. Extrahiere die Werte für die folgenden Merkmale. Gib deine Antwort NUR als Liste von "Merkmal:Wert"-Paaren zurück, wobei jedes Paar in einer neuen Zeile steht. Lasse den Wert leer, wenn er nicht gefunden wird. Füge KEINE zusätzlichen Erklärungen, Kommentare oder Formatierungen wie Markdown hinzu.
 
 HK.Nr.:
 KKS:
@@ -1485,10 +1544,9 @@ PT 100:
 NiCr-Ni:
 geprüft von:
 am:`;
-            
-            const systemInstruction = "Du bist ein präziser Datenextraktions-Assistent. Deine einzige Aufgabe ist es, Daten aus einem Bild zu extrahieren und sie in dem vom Benutzer vorgegebenen kompakten Key-Value-Format zurückzugeben.";
+                
+                const systemInstruction = "Du bist ein präziser Datenextraktions-Assistent. Deine einzige Aufgabe ist es, Daten aus einem Bild zu extrahieren und sie in dem vom Benutzer vorgegebenen kompakten Key-Value-Format zurückzugeben.";
 
-            try {
                 const compactData = await callLLMAPI(extractionPrompt, apiKey, provider, 0, file, systemInstruction);
                 
                 if (!compactData || !compactData.includes(':')) {
@@ -1513,11 +1571,6 @@ am:`;
         }
 
         async function imageToText(file, apiKey, provider) {
-            const maxMB = 5;
-            if (file.size > maxMB * 1024 * 1024) {
-                throw new Error(`Bilddatei ist größer als ${maxMB} MB.`);
-            }
-
             if (provider === 'openai' || provider === 'anthropic' || provider === 'gemini') {
                 const imagePrompt = "Analysiere das folgende Bild. Handelt es sich um ein Formular, eine Datentabelle oder eine Liste von Parametern, extrahiere alle Informationen und präsentiere sie als saubere Markdown-Tabelle mit den Spalten 'Parameter' und 'Wert'. Andernfalls, wenn es sich um ein allgemeines Foto handelt, beschreibe detailliert, was zu sehen ist.";
                 return callLLMAPI(imagePrompt, apiKey, provider, 0, file);
@@ -1616,9 +1669,7 @@ am:`;
                 const blobType = __mr && __mr.mimeType ? __mr.mimeType : 'audio/webm';
                 const blob = new Blob(__mrChunks, { type: blobType });
 
-                console.log(`Audio-Blob erstellt: Größe = ${blob.size} bytes, Typ = ${blob.type}`);
-
-                if (blob.size < 100) {
+                if (blob.size < 500) { // Increased threshold
                     throw new Error(`Aufnahme ist zu kurz oder leer (Größe: ${blob.size} bytes).`);
                 }
 
@@ -1708,6 +1759,7 @@ am:`;
                                  statusText.includes('Verarbeite') || 
                                  statusText.includes('NFC') ||
                                  statusText.includes('analysiert') ||
+                                 statusText.includes('verkleinert') ||
                                  statusText.includes('Analyse') ||
                                  statusText.includes('interpretiert') ||
                                  statusText.includes('formuliert');
@@ -1808,9 +1860,9 @@ am:`;
             document.getElementById('summarySection').classList.add('show');
 
             if (imageFile) {
-                 document.getElementById('status').textContent = 'KI interpretiert Bild...';
+                 updateRecordButton('KI interpretiert Bild...');
             } else if (transcript) {
-                 document.getElementById('status').textContent = 'KI verarbeitet Text...';
+                 updateRecordButton('KI verarbeitet Text...');
             }
 
             try {
@@ -1818,7 +1870,7 @@ am:`;
                 if (imageFile) {
                     summary = await imageToText(imageFile, apiKey, provider);
                 } else if (transcript) {
-                    document.getElementById('status').textContent = 'KI formuliert Text...';
+                    updateRecordButton('KI formuliert Text...');
                     const llmPrompt = `Formuliere den folgenden Text schön und verständlich als Fließtext. Wenn der Text einer Aufzählung ähnelt, wandle ihn in einen gut lesbaren Absatz um. Gib nur den neu formulierten Text zurück, ohne zusätzliche Überschriften oder Kommentare.\n\nOriginaltext:\n---\n${transcript}`;
                     summary = await callLLMAPI(llmPrompt, apiKey, provider);
                 }
@@ -2412,7 +2464,7 @@ am:`;
                 const prompt = `Führe die folgenden ${entries.length} Notizen zusammen, ohne Informationen zu verlieren oder zu verallgemeinern. Deine Aufgabe ist die detailgetreue Kompilation.
                 
                 Wichtige Regeln:
-                1. KEINE Zusammenfassung, KEINE Verallgemeinerung.
+                1. KEINE Zusammenfassung, KEINE Verallgemeinern.
                 2. Wenn es sich um Listen (z.B. Einkaufslisten, To-Do-Listen) handelt, kompiliere diese direkt in EINE EINZIGE, VOLLSTÄNDIGE Liste.
                 3. Erhalte alle spezifischen Details (z.B. genaue Produktnamen, Zahlen, Adressen).
                 
