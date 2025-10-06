@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
+    <!-- ✅ NEU: Angepasster Pfad zum Manifest & Theme Color -->
     <link rel="manifest" href="/captain/manifest.webmanifest">
     <meta name="theme-color" content="#4F46E5">
 
     <meta name="description" content="Sprach-Tagebuch mit KI-Zusammenfassungen und Bild-Notizen">
     <title>Synaptic Pro</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -29,25 +29,31 @@
             margin: 0 auto;
         }
 
+        /* AKTUELLE ABSCHNITTE MIT ANPASSUNG DES ABSTANDES */
         .header,
         .record-section,
+        /* .transcript-section, .summary-section sind jetzt unten in ihrer eigenen Regel */
         .entries-section {
             background: white;
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            /* NEU: Einheitlicher, reduzierter Abstand von 12px zwischen den Sektionen */
             margin-bottom: 12px; 
-            padding: 20px;
+            padding: 20px; /* Standard-Padding für Header, Einträge, etc. */
         }
         
+        /* Spezifisches Padding für Record Section, da sie den großen Button hat */
         .record-section {
             padding: 30px;
             text-align: center;
         }
         
+        /* Spezifisches Padding für Header */
         .header {
              padding: 20px;
         }
         
+        /* Spezifisches Padding für Einträge Section */
         .entries-section {
              padding: 20px;
         }
@@ -69,15 +75,18 @@
             transition: transform 0.3s;
         }
 
+        /* NEU: Icon ist beim Start eingeklappt (rotiert) */
         .header:not(.expanded) .settings-icon {
-            transform: rotate(-90deg);
+            transform: rotate(-90deg); /* Zeigt den Pfeil nach unten/rechts */
         }
+        /* Wenn aufgeklappt (expanded), zeigt der Pfeil nach oben/links */
         .header.expanded .settings-icon {
-            transform: rotate(0deg);
+            transform: rotate(0deg); /* Zeigt das Zahnrad aufrecht im aufgeklappten Zustand */
         }
 
 
         .api-setup {
+            /* Hintergrundfarbe entfernt, da sie nicht benötigt wird, wenn die äußere Karte weiß ist und die inneren Elemente ihren eigenen Hintergrund haben */
             padding: 15px;
             border-radius: 10px;
             margin-bottom: 15px;
@@ -87,8 +96,10 @@
             opacity: 1;
         }
         
+        /* NEU: Hintergrund für die API-Eingabefelder */
         .api-setup .input-group input,
         .api-setup .input-group select {
+             /* Helle, neutrale Farbe, die vorher fälschlicherweise knallpink war */
             background-color: #F3F4F6;
         }
 
@@ -127,6 +138,8 @@
             border-color: #4F46E5;
         }
         
+        /* ALTE REGELN ENTFERNT UND ZUSAMMENGEFASST OBEN */
+        
         .record-button {
             width: 120px;
             height: 120px;
@@ -141,7 +154,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 20px auto 10px;
+            margin: 20px auto 10px; /* Abstand nach unten reduziert */
         }
 
         .record-button:hover {
@@ -157,13 +170,6 @@
             background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
             animation: pulse 1.5s infinite;
         }
-        
-        #dictateEditBtn.recording {
-            background: #EF4444;
-            color: white;
-            animation: pulse 1.5s infinite;
-        }
-
 
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
@@ -176,12 +182,14 @@
             margin-top: 10px;
         }
         
+        /* Neuer Status für laufende KI-Verarbeitung */
         .processing {
             color: #4F46E5;
             font-weight: 601;
         }
 
 
+        /* NEUE REGEL: Standardmäßig komplett kollabiert, KEIN Margin/Padding */
         .transcript-section, .summary-section {
             background: white;
             border-radius: 20px;
@@ -190,11 +198,13 @@
             height: 0;
             overflow: hidden;
             pointer-events: none;
+            /* NEU: margin und padding im kollabierten Zustand entfernen */
             margin: 0;          
             padding: 0;
             transition: opacity 0.5s ease-in-out, height 0.5s ease-in-out, padding 0.5s ease-in-out, margin-bottom 0.5s ease-in-out;
         }
 
+        /* NEUE REGEL: Im .show-Zustand wieder Margin/Padding/Höhe geben */
         .transcript-section.show, .summary-section.show {
             opacity: 1;
             height: auto;
@@ -253,7 +263,7 @@
             box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
         }
         
-        .btn-action {
+        .btn-action { /* NEUER STIL FÜR AKTIONEN UNTER DER ZUSAMMENFASSUNG */
             background: #4F46E5;
             color: white;
             flex: 1;
@@ -286,6 +296,7 @@
             background: #E5E7EB;
         }
         
+        /* NEUER STIL FÜR AKTIONEN UNTER DEM RECORD BUTTON */
         .record-actions {
             display: flex;
             gap: 10px;
@@ -305,6 +316,7 @@
             border-top: 2px solid #F3F4F6;
         }
         
+        /* Neuer Stil für Tag-Vorschläge */
         .available-tags {
             display: flex;
             flex-wrap: wrap;
@@ -390,6 +402,22 @@
             color: white;
         }
 
+        .reformulate-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #F3F4F6;
+        }
+
+        .reformulate-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .entries-section {
+            /* Das margin-bottom von 12px wird bereits oben im Sammelselektor angewendet */
+        }
+
         .entries-header {
             display: flex;
             justify-content: space-between;
@@ -406,6 +434,7 @@
             margin-bottom: 15px;
         }
 
+        /* NEUE STILE FÜR AKTIVEN FILTER TAG */
         .filter-tag {
             background: #F3F4F6;
             color: #374151;
@@ -462,18 +491,7 @@
             position: relative;
             border-radius: 10px;
             margin-bottom: 15px;
-            cursor: pointer;
-            transition: background-color 0.3s;
         }
-        
-        .entry:hover {
-            background-color: #F3F4F6;
-        }
-        
-        .entry-actions button, .entry-checkbox, .entry-tags .tag {
-            cursor: pointer;
-        }
-
 
         .entry.selection-mode {
             padding-left: 50px;
@@ -522,11 +540,13 @@
             margin-bottom: 10px;
         }
 
+        /* ✅ NEUE STILE FÜR EINKLAPPBARE NOTIZEN */
         .entry-text-wrapper {
             position: relative;
+            cursor: pointer;
         }
         .entry-text.collapsed {
-            max-height: 110px;
+            max-height: 110px; /* Ca. 5 Zeilen */
             overflow: hidden;
             transition: max-height 0.4s ease-out;
         }
@@ -542,14 +562,14 @@
             opacity: 1;
             transition: opacity 0.4s ease-out;
         }
-        
-        .entry.expanded .entry-text.collapsed {
-            max-height: 1500px;
+        .entry-text-wrapper.expanded .entry-text {
+            max-height: 1500px; /* Großer Wert für die Ausdehnung */
         }
-        .entry.expanded .expand-overlay {
+        .entry-text-wrapper.expanded .expand-overlay {
             opacity: 0;
         }
         
+        /* NEU: Bild-Vorschau in Einträgen */
         .entry-image {
             max-width: 100%;
             height: auto;
@@ -562,45 +582,12 @@
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
-            max-height: 0;
-            opacity: 0;
-            overflow: hidden;
-            margin-top: 0;
-            transition: max-height 0.4s ease-out, opacity 0.4s ease-out, margin-top 0.4s ease-out;
-            pointer-events: none;
-        }
-        
-        .entry.expanded .entry-actions {
-            max-height: 200px;
-            opacity: 1;
-            margin-top: 15px;
-            pointer-events: auto;
         }
 
         .entry-actions button {
             padding: 6px 12px;
             font-size: 12px;
         }
-        
-        .entry-text table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 15px 0;
-            font-size: 14px;
-        }
-        .entry-text th, .entry-text td {
-            border: 1px solid #E5E7EB;
-            padding: 8px 12px;
-            text-align: left;
-        }
-        .entry-text th {
-            background-color: #F3F4F6;
-            font-weight: 600;
-        }
-        .entry-text tr:nth-child(even) {
-            background-color: #F9FAFB;
-        }
-
 
         .delete-btn {
             background: #EF4444;
@@ -700,6 +687,7 @@
             font-size: 18px;
         }
         
+        /* NEU: Stil für die Bildvorschau beim Hochladen */
         #imagePreview {
             max-width: 100%;
             max-height: 200px; 
@@ -750,6 +738,7 @@
       border-radius: 16px; 
       padding: 16px; 
       box-shadow: 0 6px 24px rgba(0,0,0,0.08); 
+      /* NEU: Auch hier einen kleinen margin-bottom nutzen */
       margin-bottom: 12px !important; 
   }
   .diag-card h3 {
@@ -795,20 +784,22 @@
   #diag-last-error { color:#b50000; font-weight:600; }
 </style>
 
-//XXXX
-    <link rel="apple-touch-icon" href="/captain/icon-192-v2.png">
+
+    <link rel="apple-touch-icon" href="/captain/icon-192.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
 </head>
 <body>
     <div class="container">
-        <div class="header collapsed" id="header">
+        <!-- NEU: Header-Div erhält die Klasse 'expanded' beim Laden, wenn kein API-Schlüssel hinterlegt ist -->
+        <div class="header collapsed" id="header"> <!-- HIER IST DIE WICHTIGE ÄNDERUNG: collapsed ist jetzt standardmäßig gesetzt -->
+            <!-- NEU: Klickbares H1 für Toggle -->
             <h1 id="headerTitle">
                 Synaptic Pro
                 <span class="settings-icon" id="settingsIcon">⚙️</span>
             </h1>
             
-            <div class="api-setup collapsed" id="apiSetup">
+            <div class="api-setup collapsed" id="apiSetup"> <!-- HIER IST DIE WICHTIGE ÄNDERUNG: collapsed ist standardmäßig gesetzt -->
                 <div class="input-group">
                     <label for="apiProvider">KI-Anbieter:</label>
                     <select id="apiProvider">
@@ -834,15 +825,18 @@
             <h2 class="section-title">Neue Notiz aufnehmen</h2>
             <button class="record-button" id="recordBtn" aria-label="Aufnahme starten">🎤</button>
             
+            <!-- NEU: Bild-Vorschau -->
             <img id="imagePreview" src="" alt="Hochgeladenes Bild" />
 
             <div class="record-actions">
+                <!-- Bild Upload Button -->
                 <button class="btn-secondary" id="imageUploadBtn">🖼️ Bild hochladen</button>
-                <button class="btn-action" id="photoToNfcBtn">📷 Foto zu NFC</button>
+                <!-- Nur noch ein verstecktes Input-Feld für den Audio-Upload-Fallback -->
                 <input type="file" id="audioInput" accept="audio/*" capture="microphone" style="display:none;">
+                <!-- NEU: Verstecktes Input-Feld für den Bild-Upload -->
                 <input type="file" id="imageInput" accept="image/*" style="display:none;">
-                <input type="file" id="photoToNfcInput" accept="image/*" capture="camera" style="display:none;">
                 
+                <!-- NFC-Button (nur sichtbar, wenn Web NFC API unterstützt wird) -->
                 <button class="btn-secondary" id="nfcBtn" style="display:none;">NFC-Tag lesen 📲</button>
             </div>
 
@@ -855,6 +849,7 @@
         <div class="transcript-section" id="transcriptSection">
             <h2 class="section-title" id="transcriptTitle">Transkription (Wird automatisch verarbeitet...)</h2>
             <textarea id="transcript" readonly aria-label="Transkribierter Text"></textarea>
+            <!-- Buttons entfernt, da der Prozess jetzt automatisch in die Zusammenfassung übergeht -->
             <div class="loading" id="loading" role="status">KI erstellt Zusammenfassung...</div>
             <div class="error" id="error" role="alert"></div>
         </div>
@@ -866,6 +861,7 @@
             <div class="tags-section">
                 <label>Verfügbare Tags:</label>
                 <div class="available-tags" id="availableTags">
+                    <!-- Hier werden die Tags per JavaScript eingefügt -->
                 </div>
 
                 <label>Tags hinzufügen:</label>
@@ -876,8 +872,19 @@
                 <div class="tag-list" id="currentTags"></div>
             </div>
 
+            <div class="reformulate-section">
+                <label>Neu formulieren:</label>
+                <div class="reformulate-buttons">
+                    <button class="btn-icon" id="reformulateShorter">Kürzer</button>
+                    <button class="btn-icon" id="reformulateFormal">Formeller</button>
+                    <button class="btn-icon" id="reformulateCasual">Lockerer</button>
+                </div>
+                <div class="loading" id="reformulateLoading" role="status">KI formuliert um...</div>
+            </div>
+
             <div class="button-group">
                 <button class="btn-primary" id="saveBtn">Speichern</button>
+                <!-- NEU: NFC Schreibbutton -->
                 <button class="btn-action" id="writeNFCBtn" style="display:none;">Auf NFC-Tag speichern 📲</button>
                 <button class="btn-icon" id="copyBtn">Kopieren</button>
                 <button class="btn-icon" id="shareBtn">Teilen</button>
@@ -917,6 +924,7 @@
             <div class="tags-section">
                 <label>Verfügbare Tags:</label>
                 <div class="available-tags" id="editAvailableTags">
+                    <!-- Hier werden die Tags per JavaScript eingefügt -->
                 </div>
                 <label>Tags:</label>
                 <div class="tags-input-group">
@@ -925,9 +933,7 @@
                 </div>
                 <div class="tag-list" id="editTags"></div>
             </div>
-            <div class="loading" id="editDictateLoading" role="status">KI verarbeitet Diktat...</div>
             <div class="button-group">
-                <button class="btn-icon" id="dictateEditBtn">🎤 Änderung diktieren</button>
                 <button class="btn-primary" id="saveEditBtn">Speichern</button>
                 <button class="btn-secondary" id="cancelEditBtn">Abbrechen</button>
             </div>
@@ -940,6 +946,7 @@
     <div class="modal" id="batchSummaryModal" role="dialog" aria-labelledby="batchSummaryTitle">
         <div class="modal-content">
             <div class="modal-header">
+                <!-- Titel wird dynamisch in JS gesetzt (Zusammenfassung vs. Zusammenführung) -->
                 <h2 class="section-title" id="batchSummaryTitle">Ergebnis der Stapelaktion</h2>
                 <button class="modal-close" id="closeBatchSummaryModal" aria-label="Schließen">✕</button>
             </div>
@@ -972,44 +979,49 @@
     <script>
         // MediaRecorder State
         let __mr, __mrStream, __mrChunks = [], __mrRecording = false;
-        
-        let isEditDictating = false;
 
-        let recognition;
+        let recognition; // recognition bleibt, aber wird nicht mehr primär genutzt
         let isRecording = false;
         let currentTranscript = '';
         let currentLocation = null;
         let currentTags = [];
-        let currentImageBase64 = null;
+        let currentImageBase64 = null; // Speichert das Base64-Bild für die Notiz (temporär für KI-Call)
         let selectionMode = false;
         let selectedEntries = new Set();
         let editingEntryId = null;
         let activeTagFilter = null;
         let confirmCallback = null;
-        let isApiSetupExpanded = false;
+        let isApiSetupExpanded = false; // Standardmäßig auf FALSE gesetzt!
 
         const DIARY_KEY = 'diary_entries_v2';
 
         document.addEventListener('DOMContentLoaded', () => {
-            loadAPIKey();
-            loadLocationPermission();
+            loadAPIKey(); // <--- API Key und Provider werden geladen
+            loadLocationPermission(); // NEU: Standort-Präferenz wird geladen
             
-            migrateStripImages();
+            migrateStripImages(); // NEU: Alte Bilder aus dem Speicher entfernen
             
             loadEntries();
+            // initSpeechRecognition(); // Entfernt, da Live-SR wegfällt
             setupEventListeners();
             updateAvailableTags(); 
             
+            // Wichtiger Aufruf, um die MediaRecorder-Logik zu initialisieren
             initMediaRecorderFallback();
-            initIOSFallback();
+            initIOSFallback(); // Behält das Audio-Upload-Handling
             
+            // NEU: NFC Button nur zeigen, wenn API da ist
             updateNFCButton();
-            updateNFCWriteButton();
+            updateNFCWriteButton(); // NEU: NFC Schreibbutton aktualisieren
 
+            // NEU: Diagnose beim Start einklappen
             document.getElementById('diagnostics').classList.add('collapsed');
             
+            // Die Logik zum Aufklappen wird jetzt von loadAPIKey aufgerufen, 
+            // damit der DOM-Wert des Keys gelesen werden kann.
         });
         
+        // NEUE FUNKTION: Entfernt alle Bilder aus den gespeicherten Einträgen
         function migrateStripImages() {
           const entries = getEntries();
           let changed = false;
@@ -1039,6 +1051,7 @@
             updateAvailableTags(); 
         }
         
+        // NEU: Logik zum Ein-/Ausklappen der API-Einstellungen
         function toggleApiSetup() {
             isApiSetupExpanded = !isApiSetupExpanded;
             const setupEl = document.getElementById('apiSetup');
@@ -1047,32 +1060,38 @@
             if (isApiSetupExpanded) {
                 setupEl.classList.remove('collapsed');
                 headerEl.classList.add('expanded');
-                headerEl.classList.remove('collapsed');
+                headerEl.classList.remove('collapsed'); // Klasse entfernen, falls sie noch da ist
             } else {
                 setupEl.classList.add('collapsed');
                 headerEl.classList.remove('expanded');
-                headerEl.classList.add('collapsed');
+                headerEl.classList.add('collapsed'); // Klasse hinzufügen
             }
         }
         
+        // NEU: Prüft beim Laden, ob API-Schlüssel vorhanden und passt den Zustand an
         function checkAndSetApiSetupState() {
-            const apiKey = document.getElementById('apiKey').value.trim();
+            const apiKey = document.getElementById('apiKey').value.trim(); // <-- Liest den aktuellen (wiederhergestellten) Wert
             const setupEl = document.getElementById('apiSetup');
             const headerEl = document.getElementById('header');
             
+            // Logik: Nur aufklappen, wenn KEIN Schlüssel vorhanden ist
             if (apiKey && apiKey.length > 0) {
+                // Schlüssel vorhanden -> Zustand bleibt geschlossen (durch HTML-Klasse)
                 isApiSetupExpanded = false; 
+                // Klassen explizit setzen (beim Start: collapsed)
                 setupEl.classList.add('collapsed');
-                headerEl.classList.add('collapsed');
+                headerEl.classList.add('collapsed'); // Füge collapsed zur Header-Box hinzu
                 headerEl.classList.remove('expanded'); 
             } else {
+                // KEIN Schlüssel vorhanden -> geöffnet starten (Klasse entfernen)
                 isApiSetupExpanded = true; 
                 setupEl.classList.remove('collapsed');
-                headerEl.classList.remove('collapsed');
+                headerEl.classList.remove('collapsed'); // Entferne collapsed von Header-Box
                 headerEl.classList.add('expanded');
             }
         }
         
+        // NEU: Logik zum Ein-/Ausklappen der Diagnose
         function toggleDiagnostics() {
             const diag = document.getElementById('diagnostics');
             diag.classList.toggle('collapsed');
@@ -1080,7 +1099,9 @@
 
 
         function setupEventListeners() {
+            // NEU: Event-Listener für den Header-Titel
             document.getElementById('headerTitle').addEventListener('click', toggleApiSetup);
+            // NEU: Event-Listener für den Diagnose-Header
             document.getElementById('diagHeader').addEventListener('click', toggleDiagnostics);
             
             document.getElementById('apiKey').addEventListener('change', saveAPIKey);
@@ -1088,8 +1109,9 @@
             document.getElementById('recordBtn').addEventListener('click', toggleRecording);
             
             document.getElementById('saveBtn').addEventListener('click', saveEntry);
-            document.getElementById('editCancelBtn').addEventListener('click', resetForm);
+            document.getElementById('editCancelBtn').addEventListener('click', resetForm); // Zurücksetzen, nicht nur Abbrechen
             
+            // NEU: Listener speichert Präferenz beim Ändern
             document.getElementById('locationPermission').addEventListener('change', handleLocationPermission);
             
             document.getElementById('addTagBtn').addEventListener('click', addCurrentTag);
@@ -1099,12 +1121,16 @@
 
             document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
             document.getElementById('shareBtn').addEventListener('click', shareContent);
-            document.getElementById('summary').addEventListener('input', updateNFCWriteButton);
+            document.getElementById('summary').addEventListener('input', updateNFCWriteButton); // NEU: Beim Tippen den Button aktivieren
+
+            document.getElementById('reformulateShorter').addEventListener('click', () => reformulate('kürzer'));
+            document.getElementById('reformulateFormal').addEventListener('click', () => reformulate('formeller'));
+            document.getElementById('reformulateCasual').addEventListener('click', () => reformulate('lockerer'));
 
             document.getElementById('toggleSelectionBtn').addEventListener('click', toggleSelectionMode);
             
             document.getElementById('summarizeSelectedBtn').addEventListener('click', summarizeSelected);
-            document.getElementById('mergeSelectedBtn').addEventListener('click', mergeSelected);
+            document.getElementById('mergeSelectedBtn').addEventListener('click', mergeSelected); // NEU: Event-Listener für Zusammenführen
             document.getElementById('tagSelectedBtn').addEventListener('click', tagSelected);
             document.getElementById('exportSelectedBtn').addEventListener('click', exportSelected);
             document.getElementById('shareSelectedBtn').addEventListener('click', shareSelected);
@@ -1117,8 +1143,6 @@
             document.getElementById('editNewTag').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') addEditTag();
             });
-            
-            document.getElementById('dictateEditBtn').addEventListener('click', toggleEditDictation);
 
             document.getElementById('closeBatchSummaryModal').addEventListener('click', closeBatchSummaryModal);
             document.getElementById('closeBatchSummaryBtn').addEventListener('click', closeBatchSummaryModal);
@@ -1137,32 +1161,33 @@
             document.getElementById('confirmNoBtn').addEventListener('click', closeConfirmModal);
             document.getElementById('closeConfirmModal').addEventListener('click', closeConfirmModal);
 
+            // Audio Input Listener muss hier bleiben, da er Fallback für Mobile ist
             const audioInput = document.getElementById('audioInput');
             audioInput.addEventListener('change', handleAudioFileSelection);
             
+            // NEU: Image Input Listener und Button
             const imageInput = document.getElementById('imageInput');
             document.getElementById('imageUploadBtn').addEventListener('click', () => {
-                resetForm();
+                resetForm(); // Formular zurücksetzen, bevor ein neuer Prozess startet
                 imageInput.click();
             });
             imageInput.addEventListener('change', handleImageFileSelection);
-
-            document.getElementById('photoToNfcBtn').addEventListener('click', () => {
-                document.getElementById('photoToNfcInput').click();
-            });
-            document.getElementById('photoToNfcInput').addEventListener('change', handlePhotoToNfc);
             
+            // NEU: NFC Listener
             const nfcBtn = document.getElementById('nfcBtn');
             if (nfcBtn) nfcBtn.addEventListener('click', readNFC);
             
+            // NEU: NFC Write Listener
             const writeNFCBtn = document.getElementById('writeNFCBtn');
             if (writeNFCBtn) writeNFCBtn.addEventListener('click', writeNFC);
         }
         
+        // NEU: NFC Schreibbutton (Aktivierung)
         function updateNFCWriteButton() {
             const writeNFCBtn = document.getElementById('writeNFCBtn');
             if (!writeNFCBtn) return;
             
+            // Nur anzeigen, wenn Web NFC API da ist UND Text vorhanden ist
             const isNFCSupported = ('NDEFReader' in window);
             const hasText = document.getElementById('summary').value.trim().length > 0;
             
@@ -1176,10 +1201,13 @@
         }
 
 
+        // Dummy-Funktion für SpeechRecognition (wird nicht mehr primär genutzt, aber zur Sicherheit behalten)
         function initSpeechRecognition() {} 
         
+        // NEU: NFC Button Logik (Anzeige)
         function updateNFCButton() {
             const nfcBtn = document.getElementById('nfcBtn');
+            // Web NFC ist primär auf Android/Chrome verfügbar und sollte auf iOS/Safari ausgeblendet werden
             if (nfcBtn && ('NDEFReader' in window)) {
                 nfcBtn.style.display = 'inline-flex';
             } else if (nfcBtn) {
@@ -1187,42 +1215,61 @@
             }
         }
         
+        // ✅ NEUE ZENTRALE FUNKTION zum Schreiben von Text auf einen NFC-Tag
         async function writeTextToNFC(textToWrite, buttonEl = null) {
             if (!('NDEFReader' in window)) {
                 showError('NFC-Schreiben wird von diesem Gerät/Browser nicht unterstützt.');
-                return false;
+                return;
             }
 
             if (!textToWrite) {
                 showError('Kein Text zum Schreiben auf den NFC-Tag vorhanden.');
-                return false;
+                return;
             }
             
-            let originalText = buttonEl ? buttonEl.textContent : 'Auf NFC-Tag speichern 📲';
-            
-            showSuccess('NFC-Tag zum Beschreiben bereithalten...');
+            let originalText = buttonEl ? buttonEl.textContent : '';
+            if (buttonEl) {
+                buttonEl.textContent = 'Bereit zum Scannen...';
+                buttonEl.disabled = true;
+            } else {
+                showSuccess('NFC-Tag zum Scannen bereithalten...');
+            }
 
             try {
                 const ndef = new NDEFReader();
-                await ndef.write(textToWrite);
-                showSuccess('Daten erfolgreich auf NFC-Tag geschrieben!');
-                return true;
+                const encoder = new TextEncoder();
+                const record = {
+                    recordType: "text",
+                    data: encoder.encode(textToWrite),
+                    lang: "de-DE",
+                };
+
+                await ndef.write({ records: [record] });
+                showSuccess('Notiz erfolgreich auf NFC-Tag gespeichert!');
                 
             } catch (error) {
-                let errMsg = `Fehler beim Schreiben: ${error.message}`;
+                let errMsg = error.message;
                 if (error.name === 'NotAllowedError') errMsg = 'NFC-Zugriff verweigert oder Tag nicht rechtzeitig gescannt.';
                 else if (error.name === 'NotSupportedError') errMsg = 'Tag ist schreibgeschützt oder hat nicht genug Speicher.';
-                showError(errMsg);
-                return false;
+                else if (error.name === 'UnknownError') errMsg = 'Ein unbekannter Fehler ist aufgetreten.';
+                showError(`Fehler beim Schreiben: ${errMsg}`);
+                
+            } finally {
+                if (buttonEl) {
+                    buttonEl.textContent = originalText;
+                    buttonEl.disabled = false;
+                }
             }
         }
 
+        // ✅ ANGEPASST: Ruft jetzt die zentrale Schreibfunktion auf
         async function writeNFC() {
             const textToWrite = document.getElementById('summary').value.trim();
             const btn = document.getElementById('writeNFCBtn');
             await writeTextToNFC(textToWrite, btn);
         }
 
+        // ✅ NEUE FUNKTION: Schreibt den Text eines bestehenden Eintrags auf einen NFC-Tag
         async function writeEntryToNFC(id, buttonEl) {
             const entry = getEntries().find(e => e.id === id);
             if (!entry || !entry.text) {
@@ -1232,25 +1279,10 @@
             await writeTextToNFC(entry.text, buttonEl);
         }
         
-        // ✅ NEU: Konvertiert kompakten Key-Value-Text in eine Markdown-Tabelle
-        function convertKeyValueToMarkdownTable(text) {
-            const lines = text.trim().split('\n');
-            let markdown = '| Merkmal | Wert |\n|---|---|\n';
-            lines.forEach(line => {
-                const parts = line.split(':');
-                const key = parts[0] ? parts[0].trim() : '';
-                const value = parts.length > 1 ? parts.slice(1).join(':').trim() : '';
-                if (key) {
-                    markdown += `| ${key} | ${value} |\n`;
-                }
-            });
-            return markdown;
-        }
-
-
+        // NEU: NFC Lese Logik
         async function readNFC() {
             if (!('NDEFReader' in window)) {
-                showError('NFC-Lesen wird von diesem Gerät/Browser nicht unterstützt.');
+                showError('NFC-Lesen wird von diesem Gerät/Browser nicht unterstützt (Web NFC API fehlt).');
                 return;
             }
             
@@ -1259,68 +1291,82 @@
             
             try {
                 const ndef = new NDEFReader();
+                
+                // Der Scan-Vorgang beginnt hier.
                 await ndef.scan();
                 
+                // Listener für den Lese-Fehler
                 ndef.onreadingerror = (e) => {
+                    // Stellt sicher, dass wir nur Fehler behandeln, wenn wir aktiv scannen
                     if (document.getElementById('status').textContent.includes('NFC')) {
                         showError('NFC Lese-Fehler: Tag ungültig, leer, oder Scan abgebrochen.');
+                        try { if(window.__memotag?.diag) __memotag.diag.diagError('NFC Lese-Fehler: ' + (e.message || 'Unknown error')); } catch(_) {}
                         updateRecordButton('Bereit zur Aufnahme');
                     }
                 };
 
+                // Listener für erfolgreiches Lesen
                 ndef.onreading = (e) => {
+                    // NFC-Reader stoppen, um Mehrfachlesungen zu vermeiden
                     try { ndef.cancelScan(); } catch (_) {}
                     
-                    const record = e.message.records[0];
-                    if (record && record.recordType === 'text') {
-                        const decoder = new TextDecoder();
+                    const record = e.message.records.find(r => r.recordType === 'text');
+                    
+                    if (record) {
+                        const decoder = new TextDecoder(record.encoding);
                         const text = decoder.decode(record.data);
                         processNFCReadout(text);
                     } else {
-                        showError('NFC-Tag enthält keinen lesbaren Text.');
+                        showError('NFC-Tag enthält keinen lesbaren Text-Eintrag (NDEF-Text-Record fehlt).');
+                        try { if(window.__memotag?.diag) __memotag.diag.diagError('NFC: Kein Text-Record gefunden.'); } catch(_) {}
                         updateRecordButton('Bereit zur Aufnahme');
                     }
                 };
                 
+                // Setze einen Timeout, falls der Nutzer den Vorgang nicht abschließt
+                setTimeout(() => {
+                    if (document.getElementById('status').textContent.includes('Warte auf Tag-Scan')) {
+                        showError('NFC-Scan-Timeout: Tag nicht innerhalb von 20 Sekunden erkannt.');
+                        updateRecordButton('Bereit zur Aufnahme');
+                        try { ndef.cancelScan(); } catch (_) {}
+                    }
+                }, 20000); 
+
             } catch (error) {
-                const errMsg = `NFC-Fehler: ${error.message}`;
+                const errMsg = error.name === 'NotAllowedError' 
+                    ? 'NFC-Zugriff verweigert. Bitte prüfen Sie die Browser- und Systemberechtigungen.' 
+                    : error.message.includes('No such device') 
+                        ? 'NFC ist möglicherweise deaktiviert oder nicht verfügbar.'
+                        : `NFC-Fehler: ${error.message}`;
+                        
                 showError(errMsg);
+                try { if(window.__memotag?.diag) __memotag.diag.diagError(`NFC Scan Fehler: ${error.message}`); } catch(_) {}
                 updateRecordButton('Bereit zur Aufnahme');
             }
         }
         
-        // ✅ ÜBERARBEITET: Erkennt und konvertiert das kompakte NFC-Format
+        // NEU: Verarbeitet den gelesenen Text
         async function processNFCReadout(text) {
-             let processedText = text;
-             // Prüfen, ob der Text im kompakten Format ist und KEINE Markdown-Tabelle
-             const isCompactFormat = text.includes('\n') && text.includes(':') && !text.includes('|---');
-
-             if (isCompactFormat) {
-                 try {
-                     processedText = convertKeyValueToMarkdownTable(text);
-                     showSuccess('Kompaktdaten vom NFC-Tag erkannt und in Tabelle umgewandelt.');
-                 } catch (e) {
-                     console.error("Fehler beim Umwandeln des NFC-Textes in eine Tabelle:", e);
-                     processedText = text; // Fallback auf Originaltext bei Fehler
-                 }
-             }
-
-             currentTranscript = processedText;
+             currentTranscript = text;
              const t = document.getElementById('transcript');
              if (t) t.value = currentTranscript;
              
+             // Beim NFC-Scan wird die Transkript-Sektion als temporärer Speicher verwendet, aber der Titel ändert sich
              document.getElementById('transcriptTitle').textContent = 'NFC-Text (Wird automatisch verarbeitet...)';
              const ts = document.getElementById('transcriptSection');
              if (ts) ts.classList.add('show');
              
              document.getElementById('status').textContent = 'NFC-Inhalt erfasst. Erstelle Zusammenfassung...';
-             await summarize(currentTranscript, null);
+             await summarize(currentTranscript, null); // Kein Bild
         }
 
+        // --- BILD-UPLOAD LOGIK ---
+        // NEUE FUNKTION: Bild ausgewählt
         async function handleImageFileSelection(e) {
             const file = e.target.files && e.target.files[0];
             if (!file) return;
 
+            // Optional: kleine Vorschau zeigen (kannst du auch weglassen)
             const imagePreview = document.getElementById('imagePreview');
             const reader = new FileReader();
 
@@ -1328,23 +1374,27 @@
                 imagePreview.src = event.target.result;
                 imagePreview.style.display = 'block';
                 
+                // Base64 URI temporär speichern, falls für KI benötigt (wird nach KI-Call gelöscht)
                 currentImageBase64 = event.target.result; 
                 
+                // KI-Beschreibung holen
                 document.getElementById('transcriptTitle').textContent = 'Bild-Beschreibung (Wird automatisch verarbeitet...)';
                 document.getElementById('transcriptSection').classList.add('show');
                 document.getElementById('status').textContent = 'Bild hochgeladen. Erstelle Beschreibung...';
                 document.getElementById('status').classList.add('processing');
                 
                 try {
-                    await summarize(null, file);
+                    await summarize(null, file); // nutzt dein vorhandenes image->text
                 } finally {
                     document.getElementById('status').classList.remove('processing');
+                    // Vorschau leeren, damit Speicher frei wird
                     imagePreview.src = '';
                     imagePreview.style.display = 'none';
+                    // WICHTIG: currentImageBase64 IMMER nach der Verarbeitung löschen!
                     currentImageBase64 = null; 
                 }
                 
-                document.getElementById('transcriptSection').classList.remove('show');
+                document.getElementById('transcriptSection').classList.remove('show'); // Transkript/Beschreibung ist nur ein Zwischenschritt
             };
 
             reader.onerror = () => {
@@ -1352,107 +1402,77 @@
                 resetForm();
             };
 
-            reader.readAsDataURL(file);
-        }
-        
-        // ✅ ÜBERARBEITET: Neuer Workflow für Foto-zu-NFC mit kompaktem Format
-        async function handlePhotoToNfc(e) {
-            const file = e.target.files && e.target.files[0];
-            if (!file) return;
-
-            updateRecordButton('Foto wird analysiert...', 'processing');
-            showSuccess('Foto wird analysiert, bitte warten...');
-
-            const apiKey = document.getElementById('apiKey').value.trim();
-            const provider = document.getElementById('apiProvider').value;
-            if (!apiKey) {
-                showError('Bitte gib einen API-Schlüssel ein.');
-                resetForm();
-                return;
-            }
-
-            const extractionPrompt = `Analysiere das Bild. Extrahiere die Werte für die folgenden Merkmale. Gib deine Antwort NUR als Liste von "Merkmal:Wert"-Paaren zurück, wobei jedes Paar in einer neuen Zeile steht. Lasse den Wert leer, wenn er nicht gefunden wird. Füge KEINE zusätzlichen Erklärungen, Kommentare oder Formatierungen wie Markdown hinzu.
-
-HK.Nr.:
-KKS:
-Leistung:
-Strom:
-Spannung:
-Widerstand:
-Regler:
-Sicherheitsregler/Begrenzer:
-Wächter:
-Projekt Nr.:
-Anzahl Heizkabeleinheiten:
-Trennkasten:
-Heizkabeltyp:
-Schaltung:
-Meßwertgeber:
-PT 100:
-NiCr-Ni:
-geprüft von:
-am:`;
-            
-            const systemInstruction = "Du bist ein präziser Datenextraktions-Assistent. Deine einzige Aufgabe ist es, Daten aus einem Bild zu extrahieren und sie in dem vom Benutzer vorgegebenen kompakten Key-Value-Format zurückzugeben.";
-
-            try {
-                const compactData = await callLLMAPI(extractionPrompt, apiKey, provider, 0, file, systemInstruction);
-                
-                if (!compactData || !compactData.includes(':')) {
-                    throw new Error("Die KI hat keine gültigen Daten zurückgegeben.");
-                }
-
-                updateRecordButton('Analyse fertig. Schreibe auf NFC...', 'processing');
-                const writeSuccess = await writeTextToNFC(compactData);
-                
-                if (writeSuccess) {
-                    showSuccess('Daten erfolgreich auf NFC-Tag geschrieben!');
-                } // Fehlermeldung wird von writeTextToNFC angezeigt
-
-            } catch (error) {
-                showError('Fehler beim Extrahieren der Daten: ' + error.message);
-            } finally {
-                resetForm();
-                e.target.value = ''; // Input leeren für nächste Aufnahme
-            }
+            reader.readAsDataURL(file); // Liest das Bild als Base64-String
         }
 
-
+        // NEUE FUNKTION: Image-to-Text
         async function imageToText(file, apiKey, provider) {
             const maxMB = 5;
             if (file.size > maxMB * 1024 * 1024) {
                 throw new Error(`Bilddatei ist größer als ${maxMB} MB.`);
             }
 
-            if (provider === 'openai' || provider === 'anthropic' || provider === 'gemini') {
+            // Sicherstellen, dass nur Multimodale Modelle verwendet werden
+            if (provider === 'openai') {
+                // GPT-4o oder gpt-4-turbo
+                return callLLMAPI('Beschreibe dieses Bild detailliert.', apiKey, provider, 0, file);
+            } else if (provider === 'anthropic') {
+                 // claude-3-5-sonnet oder claude-3-haiku
+                return callLLMAPI('Beschreibe dieses Bild detailliert.', apiKey, provider, 0, file);
+            } else if (provider === 'gemini') {
+                // gemini-2.5-flash
                 return callLLMAPI('Beschreibe dieses Bild detailliert.', apiKey, provider, 0, file);
             }
 
-            throw new Error('Der ausgewählte KI-Anbieter unterstützt möglicherweise keine Bildanalyse.');
+            throw new Error('Der ausgewählte KI-Anbieter unterstützt möglicherweise keine Bildanalyse (Multimodalität).');
         }
 
 
+        // NEU: Zentrale Umschaltfunktion für die Aufnahme
         function toggleRecording() {
+            const hasMediaRecorder = !!(navigator.mediaDevices && window.MediaRecorder);
+
             if (isRecording) {
-                stopMediaRecorder();
-                isRecording = false;
-                updateRecordButton('Bereit zur Aufnahme');
+                // Aufnahme stoppen (MediaRecorder)
+                if (hasMediaRecorder && __mrRecording) {
+                    stopMediaRecorder();
+                }
+                // Wenn MediaRecorder nicht aktiv, aber isRecording true (Sicherheits-Reset)
+                else {
+                    resetForm();
+                }
+
             } else {
                 resetForm();
-                startMediaRecorder().then(success => {
-                    if (success) {
-                        isRecording = true;
-                        updateRecordButton('Aufnahme läuft...');
+                // Wenn MediaRecorder verfügbar (PC/Android), starte MediaRecorder
+                if (hasMediaRecorder) {
+                    startMediaRecorder();
+                } 
+                // Wenn MediaRecorder NICHT verfügbar (z.B. iOS Safari), nutze den Audio-Upload-Fallback
+                else {
+                    // Startet den nativen Dialog zur Aufnahme/Auswahl
+                    const audioInput = document.getElementById('audioInput');
+                    if (audioInput) {
+                        try {
+                            // Diagnose-Log hinzufügen
+                            if(window.__memotag?.diag) __memotag.diag.diagLog('Klick: Mobile Fallback (Audio Upload)'); 
+                            audioInput.click();
+                        } catch (e) {
+                            showError('Mikrofonzugriff nicht möglich. Bitte Audio direkt hochladen.');
+                        }
                     }
-                });
+                }
             }
         }
         
-        async function startMediaRecorder(onStopCallback = processAudioRecording) {
+        // NEU: MediaRecorder Start/Stop Logik
+        async function startMediaRecorder() {
             try{
+                const btn = document.getElementById('recordBtn');
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 __mrStream = stream;
                 
+                // Wähle den besten MIME-Type
                 const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' :
                              (MediaRecorder.isTypeSupported('audio/ogg') ? 'audio/ogg' : 
                              (MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : ''));
@@ -1460,67 +1480,90 @@ am:`;
                 if (!mime) {
                     showError('Ihr Browser unterstützt keine MediaRecorder-Formate für Audio.');
                     stopStream(__mrStream);
-                    return false;
+                    return;
                 }
 
                 __mr = new MediaRecorder(stream, { mimeType: mime });
                 __mrChunks = [];
                 __mr.ondataavailable = e => { 
-                    if(e.data && e.data.size > 0) __mrChunks.push(e.data); 
+                    if(e.data && e.data.size > 0) {
+                        __mrChunks.push(e.data); 
+                        try { if(window.__memotag?.diag) __memotag.diag.diagLog(`Recorder: Chunk (${e.data.size} Bytes)`); } catch(_) {}
+                    }
                 };
                 
                 __mr.onerror = (e) => {
-                    showError('Aufnahmefehler: ' + e.error.name, isEditDictating ? 'editError' : 'error');
+                    showError('Aufnahmefehler: ' + e.error.name);
+                    try { if(window.__memotag?.diag) __memotag.diag.diagError('MediaRecorder Fehler: ' + e.error.name); } catch(_) {}
                     stopStream(__mrStream);
                     __mrRecording = false;
                     isRecording = false;
-                    isEditDictating = false;
                     updateRecordButton('Fehler.');
-                    document.getElementById('dictateEditBtn').classList.remove('recording');
                 };
 
-                __mr.onstop = onStopCallback;
+                __mr.onstop = processAudioRecording;
 
                 __mr.start(500); 
                 __mrRecording = true;
-                return true;
+                isRecording = true;
+                updateRecordButton('Aufnahme läuft...');
+                
+                if (document.getElementById('locationPermission')?.checked) {
+                    getCurrentLocation();
+                }
 
-            } catch(err){
+                try { if(window.__memotag?.diag) __memotag.diag.diagLog('Recorder gestartet: ' + mime); } catch(_) {}
+                
+                // Starte Mic Meter für Diagnose
+                try { if(window.__memotag?.diag) __memotag.diag.startMicMeter(); } catch(_) {}
+
+
+            }catch(err){
                 const errMsg = err.name === 'NotAllowedError' ? 'Mikrofonzugriff verweigert.' : (err.message || err);
-                showError('Zugriff auf Mikrofon fehlgeschlagen: ' + errMsg, isEditDictating ? 'editError' : 'error');
+                showError('Zugriff auf Mikrofon fehlgeschlagen: ' + errMsg);
+                try { if(window.__memotag?.diag) window.__memotag.diag.diagError('Mic-Zugriff Fehler: ' + errMsg); } catch(_) {}
                 updateRecordButton('Bereit zur Aufnahme');
-                return false;
             }
         }
         
         function stopMediaRecorder() {
             try{ 
-                if (__mr && __mr.state === 'recording') {
-                    __mr.stop(); 
-                }
+                __mr.stop(); 
+                try { if(window.__memotag?.diag) __memotag.diag.diagLog('Recorder Stopp-Kommando gesendet. Warte auf onstop Event...'); } catch(_) {}
+                try { if(window.__memotag?.diag) __memotag.diag.stopMicMeter(); } catch(_) {} // Mic Meter stoppen
+                updateRecordButton('Verarbeite...');
             }catch(_){}
             stopStream(__mrStream);
-            __mrRecording = false;
+            isRecording = false;
         }
 
         async function processAudioRecording() {
             try{
+                const btn = document.getElementById('recordBtn');
                 const blobType = __mr && __mr.mimeType ? __mr.mimeType : 'audio/webm';
                 const blob = new Blob(__mrChunks, { type: blobType });
                 const file = new File([blob], 'aufnahme.' + (blobType.includes('ogg') ? 'ogg' : 'webm'), { type: blobType });
                 
+                try { if(window.__memotag?.diag) __memotag.diag.diagLog(`Recorder Stopp: Datei (${file.name}) bereit. Größe: ${(file.size / 1024 / 1024).toFixed(2)} MB`); } catch(_) {}
+
                 await processAudioFile(file);
 
             }catch(err){
-                showError('Verarbeitung fehlgeschlagen: ' + (err.message || err));
+                const errorMessage = 'Verarbeitung fehlgeschlagen: ' + (err.message || err);
+                showError(errorMessage);
+                try { if(window.__memotag?.diag) __memotag.diag.diagError(errorMessage); } catch(_) {}
                 resetForm();
+            } finally {
+                __mrRecording = false;
             }
         }
         
+        // NEU: Allgemeine Funktion zum Verarbeiten der Audio-Datei (Upload oder MediaRecorder)
         async function processAudioFile(file) {
+             // 1. Transkription starten
             document.getElementById('status').textContent = 'Audio-Datei gesendet. Warte auf KI-Transkription...';
             document.getElementById('status').classList.add('processing');
-            document.getElementById('transcriptTitle').textContent = 'Transkription (Wird automatisch verarbeitet...)';
+            document.getElementById('transcriptTitle').textContent = 'Transkription (Wird automatisch verarbeitet...)'; // Setze Titel zurück
             
             const apiKey = document.getElementById('apiKey').value.trim();
             const provider = document.getElementById('apiProvider').value;
@@ -1535,6 +1578,8 @@ am:`;
                 transcript = await transcribeAudio(file, apiKey, provider);
                 currentTranscript = transcript || '';
                 
+                try { if(window.__memotag?.diag) __memotag.diag.diagLog('Transkription erfolgreich abgeschlossen.'); } catch(_) {}
+
                 const t = document.getElementById('transcript');
                 if (t) t.value = currentTranscript;
                 const ts = document.getElementById('transcriptSection');
@@ -1543,37 +1588,46 @@ am:`;
             } catch(err) {
                  const errorMessage = 'Transkription fehlgeschlagen: ' + (err.message || err);
                 showError(errorMessage);
+                try { if(window.__memotag?.diag) __memotag.diag.diagError(errorMessage); } catch(_) {}
                 resetForm();
                 return;
             }
 
+            // 2. Transkription fertig - Automatische Zusammenfassung starten
             document.getElementById('status').textContent = 'Transkription abgeschlossen. Erstelle Zusammenfassung...';
-            await summarize(currentTranscript, null);
+            await summarize(currentTranscript, null); // Jetzt mit transcript, kein Bild
             document.getElementById('status').classList.remove('processing');
         }
 
 
+        // NEU: Transkriptions-Logik für Upload-Fallback
         async function handleAudioFileSelection(e) {
             const file = e.target.files && e.target.files[0];
             if (!file) return;
 
-            if (!window.MediaRecorder) {
-                await processAudioFile(file);
-            }
+            try { if(window.__memotag?.diag) __memotag.diag.diagLog('Audio-Datei ausgewählt (' + file.name + ')'); } catch(_) {}
+
+            await processAudioFile(file);
+
         }
 
-        function initMediaRecorderFallback(){ }
+        // HILFSFUNKTION: MediaRecorder Fallback Logik (Initialisierung)
+        function initMediaRecorderFallback(){
+             try { if(window.__memotag?.diag) window.__memotag.diag.diagLog('Init: MediaRecorder Fallback'); } catch(_) {}
+            // Der Haupt-Button-Klick-Handler ist jetzt toggleRecording
+        }
+
+        // HILFSFUNKTION: iOS Fallback Logik (Initialisierung)
         function initIOSFallback() {
+             try { if(window.__memotag?.diag) __memotag.diag.diagLog('Init: iOS Fallback (Status-Hinweis)'); } catch(_) {}
+            // Zeige Hinweis für mobile Geräte
             const iosHint = document.getElementById('iosHint');
-            const audioInput = document.getElementById('audioInput');
-            if (iosHint && !window.MediaRecorder) {
-                iosHint.style.display = 'block';
-                document.getElementById('recordBtn').addEventListener('click', (e) => {
-                    e.preventDefault();
-                    if (!isRecording) {
-                        audioInput.click();
-                    }
-                });
+            if (iosHint) {
+                // Wir nutzen die Tatsache aus, dass MediaRecorder auf iOS Safari nicht geht
+                const hasMediaRecorder = !!(navigator.mediaDevices && window.MediaRecorder);
+                if (!hasMediaRecorder) {
+                    iosHint.style.display = 'block';
+                }
             }
         }
         
@@ -1586,11 +1640,10 @@ am:`;
             const status = document.getElementById('status');
             const imgBtn = document.getElementById('imageUploadBtn');
             const nfcBtn = document.getElementById('nfcBtn');
-            const photoToNfcBtn = document.getElementById('photoToNfcBtn');
-
 
             if (status) status.textContent = statusText;
 
+            // Mikrofon-Button Zustand
             if (statusText.includes('Aufnahme läuft')) {
                 if (btn) {
                     btn.classList.add('recording');
@@ -1605,12 +1658,11 @@ am:`;
                 }
             }
 
+            // Deaktivierung für alle Buttons während der Verarbeitung
             const isProcessing = statusText.includes('Warte auf KI') || 
                                  statusText.includes('Erstelle Zusammenfassung') || 
                                  statusText.includes('Verarbeite') || 
-                                 statusText.includes('NFC') ||
-                                 statusText.includes('analysiert') ||
-                                 statusText.includes('Analyse') ||
+                                 statusText.includes('NFC') || 
                                  statusText.includes('Beschreibung');
 
             if (isProcessing) {
@@ -1618,16 +1670,14 @@ am:`;
                  if (btn) btn.disabled = true;
                  if (imgBtn) imgBtn.disabled = true;
                  if (nfcBtn) nfcBtn.disabled = true;
-                 if (photoToNfcBtn) photoToNfcBtn.disabled = true;
-
 
             } else {
                  if (status) status.classList.remove('processing');
                  if (btn) btn.disabled = false;
                  if (imgBtn) imgBtn.disabled = false;
                  if (nfcBtn) nfcBtn.disabled = false;
-                 if (photoToNfcBtn) photoToNfcBtn.disabled = false;
             }
+
         }
 
 
@@ -1656,8 +1706,11 @@ am:`;
             const permissionCheckbox = document.getElementById('locationPermission');
             const storedValue = localStorage.getItem('location_permission');
             
+            // Standardmäßig ist es nicht gesetzt (null) oder 'false'
             if (storedValue === 'true') {
                 permissionCheckbox.checked = true;
+                // Optional: Hier könnte man direkt die Berechtigung anfordern, 
+                // aber der Browser macht das wahrscheinlich automatisch, sobald man die Checkbox anklickt.
             } else {
                 permissionCheckbox.checked = false;
             }
@@ -1667,14 +1720,21 @@ am:`;
             const permissionCheckbox = document.getElementById('locationPermission');
             const isChecked = permissionCheckbox.checked;
 
+            // 1. Speichere die Präferenz
             saveLocationPermission(isChecked);
 
+            // 2. Frage die Berechtigung an, wenn sie aktiviert wurde
             if (isChecked) {
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
-                        () => {},
+                        () => {
+                            console.log('Location permission granted');
+                            // Keine Fehlermeldung, da die Berechtigung erfolgreich ist.
+                        },
                         (error) => {
                             console.error('Location permission denied:', error);
+                            // Wenn der Nutzer die Berechtigung verweigert hat, setzen wir die Checkbox zurück
+                            // und zeigen eine Meldung, speichern aber die Präferenz, dass er es wollte.
                             permissionCheckbox.checked = false;
                             saveLocationPermission(false);
                             showError('Standort-Berechtigung wurde verweigert oder ist nicht verfügbar.');
@@ -1686,11 +1746,14 @@ am:`;
                     saveLocationPermission(false);
                 }
             }
+            // Wenn es deaktiviert wird, muss nichts weiter passieren, außer der Speicherung
         }
 
+        // NEU: Summarize-Funktion akzeptiert jetzt Transkript ODER Datei
         async function summarize(transcript, imageFile) {
+            
             if (!transcript && !imageFile) { 
-                showError('Kein Transkript oder Bild vorhanden.'); 
+                showError('Kein Transkript oder Bild vorhanden, kann nicht zusammenfassen/beschreiben.'); 
                 resetForm();
                 return; 
             }
@@ -1708,11 +1771,13 @@ am:`;
             document.getElementById('error').classList.remove('show');
             document.getElementById('summarySection').classList.add('show');
             
+            // Setze den Status-Text entsprechend
             if (imageFile) {
                  document.getElementById('status').textContent = 'KI erstellt Bildbeschreibung...';
             } else if (transcript) {
                  document.getElementById('status').textContent = 'KI erstellt Zusammenfassung...';
             }
+
 
             try {
                 let summary = '';
@@ -1725,17 +1790,50 @@ am:`;
                 document.getElementById('summary').value = summary;
                 document.getElementById('loading').classList.remove('show');
                 
+                // setze Status zurück, damit der Button wieder klickbar ist
                 updateRecordButton(imageFile ? 'Bildbeschreibung fertig!' : 'Zusammenfassung fertig!');
                 
                 currentTags = [];
                 updateCurrentTags();
-                updateNFCWriteButton();
+                updateNFCWriteButton(); // NEU: Schreibbutton aktivieren
                 
             } catch (error) {
-                const errorMessage = 'Fehler beim Erstellen der Notiz: ' + error.message;
-                showError(errorMessage);
+                showError('Fehler beim Erstellen der Notiz: ' + error.message);
                 document.getElementById('loading').classList.remove('show');
                 resetForm();
+            }
+        }
+
+        async function reformulate(style) {
+            const summary = document.getElementById('summary').value.trim();
+            if (!summary) { showError('Keine Zusammenfassung vorhanden.'); return; }
+
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const provider = document.getElementById('apiProvider').value;
+            
+            if (!apiKey) { showError('Bitte gib einen API-Schlüssel ein.'); return; }
+
+            document.getElementById('reformulateLoading').classList.add('show');
+            document.getElementById('success').classList.remove('show');
+
+            try {
+                let prompt = '';
+                if (style === 'kürzer') {
+                    prompt = `Formuliere den folgenden Text deutlich kürzer (max. 50% der Originallänge), aber behalte alle wichtigen Informationen:\n\n${summary}`;
+                } else if (style === 'formeller') {
+                    prompt = `Formuliere den folgenden Text formeller und professioneller:\n\n${summary}`;
+                } else if (style === 'lockerer') {
+                    prompt = `Formuliere den folgenden Text lockerer und umgangssprachlicher:\n\n${summary}`;
+                }
+
+                let reformulated = await callLLMAPI(prompt, apiKey, provider, 0, null); // Kein Bild
+                document.getElementById('summary').value = reformulated;
+                document.getElementById('reformulateLoading').classList.remove('show');
+                showSuccess('Erfolgreich neu formuliert!');
+                updateNFCWriteButton(); // NEU: Schreibbutton aktualisieren
+            } catch (error) {
+                showError('Fehler beim Neu-Formulieren: ' + error.message);
+                document.getElementById('reformulateLoading').classList.remove('show');
             }
         }
 
@@ -1774,6 +1872,7 @@ am:`;
             updateCurrentTags();
         }
         
+        // NEU: Tags sammeln und anzeigen
         function updateAvailableTags() {
             const allEntries = getEntries();
             const allTags = new Set();
@@ -1781,6 +1880,7 @@ am:`;
                 if (entry.tags) entry.tags.forEach(tag => allTags.add(tag));
             });
 
+            // Tags für den Haupt-Tag-Bereich (Neue Notiz)
             const container = document.getElementById('availableTags');
             renderTagSuggestions(container, allTags, tag => {
                 if (!currentTags.includes(tag)) {
@@ -1791,7 +1891,9 @@ am:`;
                 updateCurrentTags();
             }, currentTags);
             
+            // Tags für den Edit-Modal-Bereich
             const editContainer = document.getElementById('editAvailableTags');
+            // Stelle sicher, dass `currentTags` im Edit Modal die Tags des Eintrags reflektieren, wenn es offen ist
             const tagsForEditModal = editingEntryId ? getEntries().find(e => e.id === editingEntryId)?.tags || [] : currentTags;
             renderTagSuggestions(editContainer, allTags, tag => {
                 if (!currentTags.includes(tag)) {
@@ -1802,9 +1904,11 @@ am:`;
                 updateEditTags();
             }, tagsForEditModal);
 
+            // Tags für den Filter-Bereich
             updateTagFilter(allEntries);
         }
 
+        // Hilfsfunktion zum Rendern der klickbaren Tag-Vorschläge
         function renderTagSuggestions(container, tags, clickHandler, activeTags) {
             container.innerHTML = '';
             Array.from(tags).sort().forEach(tag => {
@@ -1844,7 +1948,7 @@ am:`;
                 wrap.appendChild(btn);
                 container.appendChild(wrap);
             });
-            updateAvailableTags();
+            updateAvailableTags(); // Tags im Modal nach dem Editieren aktualisieren
         }
 
         function removeEditTag(tag) {
@@ -1852,9 +1956,11 @@ am:`;
             updateEditTags();
         }
 
+        // KORRIGIERTE saveEntry Funktion
         function saveEntry() {
             const summary = document.getElementById('summary').value.trim();
 
+            // Prueft, ob Text zum Speichern vorhanden ist (da Bilder nicht mehr gespeichert werden)
             if (!summary) { 
                 showError('Bitte gib Text ein (Zusammenfassung).');
                 return;
@@ -1864,14 +1970,14 @@ am:`;
             const newEntry = {
                 id: Date.now().toString(),
                 text: summary || '',
-                image: null,
+                image: null, // BILD WIRD NICHT MEHR GESPEICHERT
                 tags: [...currentTags], 
                 location: currentLocation,
                 timestamp: new Date().toISOString(),
                 transcript: currentTranscript || '' 
             };
 
-            entries.unshift(newEntry);
+            entries.unshift(newEntry); // Neue Einträge vorne einfügen
             saveEntries(entries);
 
             showSuccess('Notiz gespeichert!');
@@ -1898,7 +2004,7 @@ am:`;
             
             currentTags = entry.tags ? [...entry.tags] : [];
             updateEditTags();
-            updateAvailableTags();
+            updateAvailableTags(); // Wichtig, um die Tags im Modal neu zu rendern
         }
 
         function saveEditedEntry() {
@@ -1911,6 +2017,7 @@ am:`;
             if (entryIndex > -1) {
                 entries[entryIndex].text = text;
                 entries[entryIndex].tags = [...currentTags];
+                // Bild bleibt unverändert, da es im Bearbeitungsmodal nicht geändert werden kann
                 saveEntries(entries);
                 
                 showSuccess('Eintrag aktualisiert!', 'editSuccess');
@@ -1919,99 +2026,54 @@ am:`;
         }
 
         function closeEditModal() {
-            if(isEditDictating) {
-                stopMediaRecorder();
-                isEditDictating = false;
-            }
-            document.getElementById('dictateEditBtn').classList.remove('recording');
             document.getElementById('editModal').classList.remove('show');
             editingEntryId = null;
             currentTags = [];
         }
-        
-        async function toggleEditDictation() {
-            const btn = document.getElementById('dictateEditBtn');
-            if (isEditDictating) {
-                stopMediaRecorder();
-                isEditDictating = false;
-                btn.classList.remove('recording');
-                btn.textContent = '🎤 Änderung diktieren';
-            } else {
-                const recordingStarted = await startMediaRecorder(processEditDictation);
-                if (recordingStarted) {
-                    isEditDictating = true;
-                    btn.classList.add('recording');
-                    btn.textContent = '⏹️ Aufnahme stoppen';
-                }
-            }
-        }
 
-        async function processEditDictation() {
-            isEditDictating = false;
-            const btn = document.getElementById('dictateEditBtn');
-            btn.classList.remove('recording');
-            btn.textContent = '🎤 Änderung diktieren';
+        async function reformulateEntry(id) {
+            const entry = getEntries().find(e => e.id === id);
+            if (!entry) return;
 
-            try {
-                const blobType = __mr && __mr.mimeType ? __mr.mimeType : 'audio/webm';
-                const blob = new Blob(__mrChunks, { type: blobType });
-                const file = new File([blob], 'diktat.' + (blobType.includes('ogg') ? 'ogg' : 'webm'), { type: blobType });
-                
-                await applyDictatedChanges(file);
+            const style = prompt('Wie soll neu formuliert werden? (kürzer/formeller/lockerer)');
+            if (!style || !['kürzer', 'formeller', 'lockerer'].includes(style.toLowerCase())) return;
 
-            } catch (err) {
-                showError('Verarbeitung des Diktats fehlgeschlagen: ' + (err.message || err), 'editError');
-            }
-        }
-        
-        async function applyDictatedChanges(audioFile) {
             const apiKey = document.getElementById('apiKey').value.trim();
             const provider = document.getElementById('apiProvider').value;
-            if (!apiKey) {
-                showError('API-Schlüssel benötigt.', 'editError');
-                return;
-            }
-
-            const loadingEl = document.getElementById('editDictateLoading');
-            loadingEl.classList.add('show');
             
+            if (!apiKey) { showError('Bitte gib einen API-Schlüssel ein.'); return; }
+
+            showSuccess('Formuliere um...');
+
             try {
-                const instructionText = await transcribeAudio(audioFile, apiKey, provider);
-                if (!instructionText) {
-                    throw new Error("Transkription ergab keinen Text.");
+                let prompt = '';
+                if (style.toLowerCase() === 'kürzer') {
+                    prompt = `Formuliere den folgenden Text deutlich kürzer (max. 50% der Originallänge), aber behalte alle wichtigen Informationen:\n\n${entry.text}`;
+                } else if (style.toLowerCase() === 'formeller') {
+                    prompt = `Formuliere den folgenden Text formeller und professioneller:\n\n${entry.text}`;
+                } else if (style.toLowerCase() === 'lockerer') {
+                    prompt = `Formuliere den folgenden Text lockerer und umgangssprachlicher:\n\n${entry.text}`;
                 }
 
-                const originalText = document.getElementById('editText').value;
-                const prompt = `Du bist ein intelligenter Text-Editor. Modifiziere den "Originaltext" basierend auf der diktierten "Anweisung". Gib NUR den finalen, vollständigen und geänderten Text zurück, ohne zusätzliche Kommentare.
+                let reformulated = await callLLMAPI(prompt, apiKey, provider, 0, null); // Kein Bild
 
-                Originaltext:
-                ---
-                ${originalText}
-                ---
-
-                Anweisung:
-                ---
-                ${instructionText}
-                ---
-
-                Finaler Text:`;
-
-                const modifiedText = await callLLMAPI(prompt, apiKey, provider);
-                document.getElementById('editText').value = modifiedText;
-                showSuccess('Text per Diktat aktualisiert!', 'editSuccess');
-
-            } catch(error) {
-                showError('Fehler bei der diktierten Änderung: ' + error.message, 'editError');
-            } finally {
-                loadingEl.classList.remove('show');
+                const entries = getEntries();
+                const entryIndex = entries.findIndex(e => e.id === id);
+                if (entryIndex > -1) {
+                    entries[entryIndex].text = reformulated;
+                    saveEntries(entries);
+                    showSuccess('Erfolgreich neu formuliert!');
+                }
+            } catch (error) {
+                showError('Fehler beim Neu-Formulieren: ' + error.message);
             }
         }
-
 
         async function copyEntry(id) {
             const entry = getEntries().find(e => e.id === id);
             if (!entry) return;
 
+            // Bild-Hinweis bleibt für alte Einträge, aber neue haben kein Bild mehr
             let textToCopy = entry.text;
             if (entry.image) {
                 textToCopy = `[Bild-Notiz]\n${textToCopy}`;
@@ -2029,6 +2091,7 @@ am:`;
             const entry = getEntries().find(e => e.id === id);
             if (!entry) return;
             
+            // Bild-Hinweis bleibt für alte Einträge, aber neue haben kein Bild mehr
             let textToShare = entry.text;
             if (entry.image) {
                 textToShare = `[Bild-Notiz]\n${textToShare}`;
@@ -2053,14 +2116,13 @@ am:`;
             }
 
             renderEntries(entries);
+            // updateTagFilter wird in updateAvailableTags aufgerufen.
         }
 
         function renderEntries(entries) {
             const container = document.getElementById('entries');
             container.innerHTML = '';
             
-            const converter = new showdown.Converter({ tables: true, simpleLineBreaks: true });
-
             if (entries.length === 0) {
                 const empty = document.createElement('div');
                 empty.className = 'empty-state';
@@ -2106,11 +2168,12 @@ am:`;
                 header.appendChild(dateDiv);
                 entryDiv.appendChild(header);
                 
+                // NEU: Bild-Vorschau hinzufügen (wird nur für ALTE Einträge gerendert, da neue kein Bild mehr speichern)
                 if (entry.image) {
                      const img = document.createElement('img');
                      img.className = 'entry-image';
                      img.src = entry.image;
-                     img.alt = entry.text.substring(0, 50) + '...';
+                     img.alt = entry.text.substring(0, 50) + '...'; // Nutze den Text als Alt-Text
                      entryDiv.appendChild(img);
                 }
 
@@ -2129,14 +2192,14 @@ am:`;
 
                 const textEl = document.createElement('div');
                 textEl.className = 'entry-text';
-                
-                const html = converter.makeHtml(entry.text || '');
-                textEl.innerHTML = html;
+                textEl.textContent = entry.text;
 
-                const isLongText = (entry.text || '').split('\n').length > 5 || (entry.text || '').length > 300;
+                // ✅ NEUE LOGIK FÜR EINKLAPPBARE NOTIZEN
+                const isLongText = entry.text.split('\n').length > 5 || entry.text.length > 300;
                 if (isLongText) {
                     const wrapper = document.createElement('div');
                     wrapper.className = 'entry-text-wrapper';
+
                     textEl.classList.add('collapsed');
                     
                     const overlay = document.createElement('div');
@@ -2144,46 +2207,44 @@ am:`;
 
                     wrapper.appendChild(textEl);
                     wrapper.appendChild(overlay);
+
+                    wrapper.addEventListener('click', () => {
+                        wrapper.classList.toggle('expanded');
+                    });
+                    
                     entryDiv.appendChild(wrapper);
                 } else {
                     entryDiv.appendChild(textEl);
                 }
 
+
                 const actions = document.createElement('div');
                 actions.className = 'entry-actions';
                 
+                // ✅ ANGEPASST: Button-Konfiguration für einfachere Handhabung
                 const btnConfigs = [
-                    ['Bearbeiten', 'btn-icon', () => editEntry(entry.id)],
-                    ['Kopieren', 'btn-icon', () => copyEntry(entry.id)],
-                    ['Teilen', 'btn-icon', () => shareEntry(entry.id)]
+                    ['Bearbeiten', 'btn-icon', (btn) => editEntry(entry.id)],
+                    ['Neu formulieren', 'btn-icon', (btn) => reformulateEntry(entry.id)],
+                    ['Kopieren', 'btn-icon', (btn) => copyEntry(entry.id)],
+                    ['Teilen', 'btn-icon', (btn) => shareEntry(entry.id)]
                 ];
 
+                // ✅ NEU: NFC-Button nur hinzufügen, wenn die API unterstützt wird
                 if ('NDEFReader' in window) {
                     btnConfigs.push(['Auf NFC schreiben', 'btn-icon', (btn) => writeEntryToNFC(entry.id, btn)]);
                 }
 
-                btnConfigs.push(['Löschen', 'delete-btn', () => deleteEntry(entry.id)]);
+                btnConfigs.push(['Löschen', 'delete-btn', (btn) => deleteEntry(entry.id)]);
 
                 btnConfigs.forEach(([label, className, handler]) => {
                     const btn = document.createElement('button');
                     btn.className = className;
                     btn.textContent = label;
-                    btn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        handler();
-                    });
+                    btn.addEventListener('click', () => handler(btn));
                     actions.appendChild(btn);
                 });
 
                 entryDiv.appendChild(actions);
-
-                entryDiv.addEventListener('click', (e) => {
-                    if (e.target.closest('button, input, a')) {
-                        return;
-                    }
-                    entryDiv.classList.toggle('expanded');
-                });
-
                 container.appendChild(entryDiv);
             });
         }
@@ -2200,6 +2261,7 @@ am:`;
             if (allTags.size === 0 && !activeTagFilter) return;
 
             const allBtn = document.createElement('div');
+            // NEU: Aktive Klasse basierend auf activeTagFilter
             allBtn.className = `filter-tag ${!activeTagFilter ? 'active' : ''}`;
             allBtn.textContent = 'Alle';
             allBtn.addEventListener('click', () => filterByTag(null));
@@ -2207,6 +2269,7 @@ am:`;
 
             Array.from(allTags).forEach(tag => {
                 const tagBtn = document.createElement('div');
+                // NEU: Aktive Klasse basierend auf activeTagFilter
             tagBtn.className = `filter-tag ${activeTagFilter === tag ? 'active' : ''}`;
                 tagBtn.textContent = tag;
                 tagBtn.addEventListener('click', () => filterByTag(tag));
@@ -2215,9 +2278,10 @@ am:`;
         }
 
         function filterByTag(tag) {
+            // NEU: activeTagFilter setzen/zurücksetzen und dann Einträge neu laden
             activeTagFilter = tag;
             loadEntries();
-            updateTagFilter(getEntries());
+            updateTagFilter(getEntries()); // Wichtig: Filter-Buttons aktualisieren
         }
 
         function toggleSelectionMode() {
@@ -2258,6 +2322,7 @@ am:`;
             document.getElementById('batchSummarySuccess').classList.remove('show');
 
             try {
+                // Berücksichtige Bilder in der zusammengefassten Notiz
                 const combinedText = entries.map((e, i) => {
                     const imgNote = e.image ? ' [Bild-Notiz enthalten]' : '';
                     return `Notiz ${i + 1} (${new Date(e.timestamp).toLocaleDateString('de-DE')})${imgNote}:\n${e.text}`;
@@ -2265,7 +2330,7 @@ am:`;
                 
                 const prompt = `Erstelle eine prägnante Gesamt-Zusammenfassung der folgenden ${entries.length} Notizen. Identifiziere gemeinsame Themen und wichtige Erkenntnisse:\n\n${combinedText}`;
 
-                let summary = await callLLMAPI(prompt, apiKey, provider, 0, null);
+                let summary = await callLLMAPI(prompt, apiKey, provider, 0, null); // Kein Bild
 
                 document.getElementById('batchSummaryLoading').classList.remove('show');
                 document.getElementById('batchSummaryText').value = summary;
@@ -2277,6 +2342,7 @@ am:`;
             }
         }
         
+        // NEU: Funktion zum Zusammenführen von Einträgen ohne Informationsverlust
         async function mergeSelected() {
             const allEntries = getEntries();
             const entries = allEntries.filter(e => selectedEntries.has(e.id));
@@ -2297,11 +2363,13 @@ am:`;
 
 
             try {
+                // Berücksichtige Bilder in der zusammengefassten Notiz
                 const combinedText = entries.map((e, i) => {
                     const imgNote = e.image ? ' [Bild-Notiz enthalten]' : '';
                     return `--- Eintrag ${i + 1}${imgNote} ---\n${e.text}`;
                 }).join('\n\n');
                 
+                // Strenger Prompt zur Kompilation von Daten und Listen
                 const prompt = `Führe die folgenden ${entries.length} Notizen zusammen, ohne Informationen zu verlieren oder zu verallgemeinern. Deine Aufgabe ist die detailgetreue Kompilation.
                 
                 Wichtige Regeln:
@@ -2313,7 +2381,7 @@ am:`;
                 
                 ${combinedText}`;
 
-                let result = await callLLMAPI(prompt, apiKey, provider, 0, null);
+                let result = await callLLMAPI(prompt, apiKey, provider, 0, null); // Kein Bild
 
                 document.getElementById('batchSummaryLoading').classList.remove('show');
                 document.getElementById('batchSummaryText').value = result;
@@ -2335,9 +2403,10 @@ am:`;
                 text: summary,
                 timestamp: new Date().toISOString(),
                 location: null,
+                // Tag anpassen, je nachdem, welche Aktion zuletzt ausgeführt wurde
                 tags: [document.getElementById('batchSummaryTitle').textContent.includes('Zusammenfassung') ? 'Zusammenfassung' : 'Kompilation'],
                 transcript: `${document.getElementById('batchSummaryTitle').textContent} von ${selectedEntries.size} Notizen`,
-                image: null
+                image: null // Bei Zusammenfassungen wird kein Bild gespeichert
             };
 
             const entries = getEntries();
@@ -2354,6 +2423,7 @@ am:`;
             document.getElementById('batchSummaryText').style.display = 'none';
             document.getElementById('batchSummaryActions').style.display = 'none';
             document.getElementById('batchSummaryLoading').classList.add('show');
+            // Titel für das nächste Mal zurücksetzen
             document.getElementById('batchSummaryTitle').textContent = 'Ergebnis der Stapelaktion';
             document.getElementById('batchSummaryLoading').textContent = 'KI erstellt Gesamt-Zusammenfassung...';
         }
@@ -2452,6 +2522,7 @@ am:`;
         function saveAPIKey() {
             localStorage.setItem('api_key', document.getElementById('apiKey').value);
             localStorage.setItem('api_provider', document.getElementById('apiProvider').value);
+            // NEU: Status nach dem Speichern der API-Schlüssel überprüfen und zuklappen
             checkAndSetApiSetupState();
         }
 
@@ -2461,6 +2532,7 @@ am:`;
             if (apiKey) document.getElementById('apiKey').value = apiKey;
             if (provider) document.getElementById('apiProvider').value = provider;
             
+            // WICHTIG: API Setup Zustand erst NACHDEM die Werte geladen sind prüfen!
             checkAndSetApiSetupState();
         }
 
@@ -2516,27 +2588,30 @@ am:`;
             currentTranscript = '';
             currentLocation = null;
             currentTags = [];
-            currentImageBase64 = null;
+            currentImageBase64 = null; // ZURÜCKSETZEN
             document.getElementById('transcript').value = '';
             document.getElementById('summary').value = '';
             document.getElementById('newTag').value = '';
             document.getElementById('transcriptSection').classList.remove('show');
             document.getElementById('summarySection').classList.remove('show');
             
+            // Bild-Vorschau zurücksetzen
             const imagePreview = document.getElementById('imagePreview');
             imagePreview.src = '';
             imagePreview.style.display = 'none';
             
+            // Setze den Status zurück
             updateRecordButton('Bereit zur Aufnahme');
             
             updateCurrentTags();
             document.getElementById('error').classList.remove('show');
             document.getElementById('success').classList.remove('show');
             
-            updateNFCWriteButton();
+            updateNFCWriteButton(); // Schreibbutton ausblenden
         }
     </script>
     
+    <!-- ✅ KORRIGIERTER Service Worker Registrierungsscript -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -2567,39 +2642,27 @@ am:`;
 
     <!-- KI API Logik -->
     <script>
+        // Funktion zum Extrahieren der KI-Antwort basierend auf dem Anbieter
         function handleAPIResponse(provider, data) {
             if (provider === 'anthropic') {
+                // Anthropic (Claude) Antwortstruktur
                 const textBlock = data.content?.find(block => block.type === 'text');
-                return textBlock?.text || 'Fehler: Anthropic-Antwort konnte nicht gelesen werden.';
+                return textBlock?.text || 'Fehler beim Parsen der Anthropic-Antwort.';
             } else if (provider === 'openai') {
-                return data.choices?.[0]?.message?.content || 'Fehler: OpenAI-Antwort konnte nicht gelesen werden.';
+                // OpenAI (GPT) Antwortstruktur
+                return data.choices?.[0]?.message?.content || 'Fehler beim Parsen der OpenAI-Antwort.';
             } else if (provider === 'gemini') {
+                // ✅ NEU: Verbesserte Fehlerbehandlung für blockierte Antworten
                 if (data.promptFeedback?.blockReason) {
-                    const reason = data.promptFeedback.blockReason;
-                    const userMessage = "Die KI hat die Anfrage wegen Sicherheitsbedenken blockiert. Versuchen Sie eine andere Formulierung.";
-                    return `Fehler: ${userMessage}`; 
+                    return `Fehler: Gemini-Antwort blockiert (Grund: ${data.promptFeedback.blockReason}).`;
                 }
-
-                const candidate = data.candidates?.[0];
-                if (candidate) {
-                    const finishReason = candidate.finishReason;
-                    if (finishReason && finishReason !== 'STOP' && finishReason !== 'MAX_TOKENS') {
-                        const userMessage = `Die KI hat die Antwort aus Sicherheitsgründen gestoppt (Grund: ${finishReason}).`;
-                        return `Fehler: ${userMessage}`;
-                    }
-
-                    const text = candidate.content?.parts?.[0]?.text;
-                    if (text) {
-                        return text;
-                    }
-                }
-                
-                return 'Fehler beim Parsen der Gemini-Antwort (kein Inhalt gefunden).';
-
+                // Google (Gemini) Antwortstruktur
+                return data.candidates?.[0]?.content?.parts?.[0]?.text || 'Fehler beim Parsen der Gemini-Antwort.';
             }
-            return 'Fehler: Unbekannter KI-Anbieter.';
+            return 'Unbekannter KI-Anbieter.';
         }
         
+        // Hilfsfunktion: Konvertiert Data URL zu Base64 und MimeType
         function dataURLtoParts(dataURL) {
             const parts = dataURL.split(';base64,');
             if (parts.length < 2) throw new Error("Ungültiges Data-URL-Format.");
@@ -2609,15 +2672,18 @@ am:`;
         }
 
 
-        async function callLLMAPI(userPrompt, apiKey, provider, retryCount = 0, imageFile = null, systemInstructionOverride = null) {
+        // Hauptfunktion für den KI-API-Aufruf (jetzt mit optionalem File-Parameter)
+        async function callLLMAPI(userPrompt, apiKey, provider, retryCount = 0, imageFile = null) {
             let url = '';
             let headers = {};
             let body = {};
             let model = '';
-            let systemInstruction = systemInstructionOverride || 'Du bist ein freundlicher, prägnanter Assistent, der Notizen zusammenfasst, umformuliert oder Bilder detailliert beschreibt. Deine Antwort soll nur die gewünschte Ausgabe enthalten, ohne einleitenden Text wie "Hier ist die Zusammenfassung". Antworte auf Deutsch.';
+            let systemInstruction = 'Du bist ein freundlicher, prägnanter Assistent, der Notizen zusammenfasst, umformuliert oder Bilder detailliert beschreibt. Deine Antwort soll nur die gewünschte Ausgabe enthalten, ohne einleitenden Text wie "Hier ist die Zusammenfassung". Antworte auf Deutsch.';
             
+            // Konvertierung für Multimodal-Payloads
             let imageParts = null;
             if (imageFile) {
+                // Für Gemini und Claude wird die Base64-Version benötigt
                 const base64Url = await new Promise(resolve => {
                     const reader = new FileReader();
                     reader.onload = () => resolve(reader.result);
@@ -2627,10 +2693,12 @@ am:`;
             }
 
 
+            // API Konfiguration basierend auf Anbieter
             if (provider === 'anthropic') {
                 url = 'https://api.anthropic.com/v1/messages';
-                model = 'claude-3-5-sonnet-20240620';
+                model = 'claude-3-5-sonnet-20240620'; // Nutze ein besseres Multimodal-Modell
                 
+                // Aufbau der Nachrichten-Inhalte
                 let content = [{ type: 'text', text: userPrompt }];
                 if (imageParts) {
                     content.unshift({
@@ -2659,23 +2727,17 @@ am:`;
                 
             } else if (provider === 'openai') {
                 url = 'https://api.openai.com/v1/chat/completions';
-                model = 'gpt-4o';
+                model = 'gpt-4o'; // Nutze gpt-4o für Multimodalität
                 
                 let content = [{ type: 'text', text: userPrompt }];
-                if (currentImageBase64) { // Note: This uses the global state, might need adjustment for the new workflow
+                // Wichtig: Nur Base64 in den Content, wenn currentImageBase64 (Data URL) gesetzt ist.
+                if (currentImageBase64) {
+                    // Da das Bild nur temporär gehalten wird, MUSS es für OpenAI hier aus dem State kommen.
                     content.push({
                         type: 'image_url',
                         image_url: {
                             url: currentImageBase64,
                             detail: "low" 
-                        }
-                    });
-                } else if (imageParts) {
-                     content.push({
-                        type: 'image_url',
-                        image_url: {
-                            url: `data:${imageParts.mimeType};base64,${imageParts.data}`,
-                            detail: "auto"
                         }
                     });
                 }
@@ -2693,13 +2755,14 @@ am:`;
                     max_tokens: 2000
                 };
             } else if (provider === 'gemini') {
-                url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-                model = 'gemini-2.5-flash';
+                // Gemini verwendet den Canvas-Proxy, daher kein API-Key im Header, sondern in der URL
+                url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`; // flash unterstützt Multimodalität
                 headers = {
                     'Content-Type': 'application/json'
                 };
                 
                 let parts = [{ text: userPrompt }];
+                // Wenn imageFile übergeben wurde (beim initialen summarize-Call), dann Base64-Parts hinzufügen
                 if (imageParts) {
                      parts.push({
                          inlineData: { mimeType: imageParts.mimeType, data: imageParts.data }
@@ -2715,11 +2778,10 @@ am:`;
                 throw new Error('Unbekannter KI-Anbieter ausgewählt.');
             }
             
-            try {
-                if(window.__memotag?.diag) {
-                    __memotag.diag.diagLog(`Starte API-Aufruf zu ${provider} mit Modell ${model}...`);
-                }
-            } catch(_) {}
+            // Wenn eine Bilddatei vorhanden ist, setze den Modellnamen für die Diagnose
+            if (imageFile) {
+                 try { if(window.__memotag?.diag) __memotag.diag.diagLog(`Multimodal-Aufruf gestartet: ${model}`); } catch(_) {}
+            }
 
 
             try {
@@ -2736,28 +2798,30 @@ am:`;
                     throw new Error(`API-Fehler (${response.status}): ${errorMsg}`);
                 }
 
+                // Fehlerbehandlung für unvollständige Antworten
                 const resultText = handleAPIResponse(provider, data);
-                if (resultText.startsWith('Fehler')) {
+                if (resultText.startsWith('Fehler beim Parsen')) {
                      throw new Error(resultText);
                 }
                 
                 return resultText;
 
             } catch (error) {
+                // Exponential Backoff für Netzwerkfehler oder Timeout
                 if (retryCount < 3 && (error.message.includes('Failed to fetch') || error.message.includes('Timeout'))) {
                     const delay = Math.pow(2, retryCount) * 1000;
                     console.warn(`API-Aufruf fehlgeschlagen. Versuche es in ${delay}ms erneut...`);
                     await new Promise(resolve => setTimeout(resolve, delay));
-                    return callLLMAPI(userPrompt, apiKey, provider, retryCount + 1, imageFile, systemInstructionOverride);
+                    return callLLMAPI(userPrompt, apiKey, provider, retryCount + 1, imageFile);
                 }
                 throw error;
             }
         }
     </script>
     
-<section class="diag-card collapsed" id="diagnostics">
-  <h3 style="margin-top:0" id="diagHeader">Diagnose <span class="toggle-icon">▼</span></h3>
-  <div class="diag-content" id="diagContent">
+<section class="diag-card collapsed" id="diagnostics"> <!-- NEU: 'collapsed' als Standard -->
+  <h3 style="margin-top:0" id="diagHeader">Diagnose <span class="toggle-icon">▼</span></h3> <!-- NEU: ID und Icon -->
+  <div class="diag-content" id="diagContent"> <!-- NEU: Content Wrapper -->
       <div class="diag-grid">
         <div>Zustand</div>
         <div><span id="diag-state" class="state-badge state-warn">bereit</span></div>
@@ -2770,6 +2834,7 @@ am:`;
 
         <div>Ereignis-Log</div>
         <div id="diag-log" aria-live="polite"></div>
+        <div style="grid-column:1 / span 2; display:flex; gap:8px; margin-top:8px;"><button id="diagStart" type="button">Diagnose starten</button><button id="diagStop" type="button">Diagnose stoppen</button></div>
       </div>
   </div>
 </section>
@@ -2791,7 +2856,7 @@ am:`;
       return d.toLocaleTimeString();
     }
 
-    function diagSetState(text, cls){
+    window.diagSetState = function(text, cls){
       const el = $state();
       if(!el) return;
       el.textContent = text;
@@ -2799,7 +2864,7 @@ am:`;
       el.classList.add(cls || 'state-warn');
     }
 
-    function diagLog(msg){
+    window.diagLog = function(msg){
       const el = $log();
       if(!el) return;
       const line = document.createElement('div');
@@ -2810,14 +2875,14 @@ am:`;
       if(nodes.length > 60) el.removeChild(nodes[nodes.length-1]);
     }
 
-    function diagError(msg){
+    window.diagError = function(msg){
       const el = $err();
       if(el) el.textContent = msg || '–';
       diagSetState('Fehler', 'state-err');
       diagLog('ERROR: ' + msg);
     }
 
-    async function startMicMeter(){
+    window.startMicMeter = async function(){
       try{
         if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
           diagLog('getUserMedia nicht verfügbar');
@@ -2857,7 +2922,7 @@ am:`;
       }
     }
 
-    function stopMicMeter(){
+    window.stopMicMeter = function(){
       if(rafId) cancelAnimationFrame(rafId);
       rafId = null;
       try { if(micStream){ micStream.getTracks().forEach(t=>t.stop()); } } catch(e){}
@@ -2867,12 +2932,54 @@ am:`;
       diagLog('Mic-Meter gestoppt');
     }
 
+    const _origInit = window.initSpeechRecognition;
+    window.initSpeechRecognition = function(){
+      if(typeof _origInit === 'function'){
+        _origInit();
+      }
+      try{
+        if(window.recognition){
+          const r = window.recognition;
+          r.onstart = ()=>{ diagSetState('läuft', 'state-ok'); diagLog('onstart'); };
+          r.onaudiostart = ()=>{ diagLog('onaudiostart'); };
+          r.onsoundstart = ()=>{ diagLog('onsoundstart'); };
+          r.onspeechstart = ()=>{ diagSetState('Sprache erkannt', 'state-ok'); diagLog('onspeechstart'); };
+          r.onspeechend = ()=>{ diagLog('onspeechend'); };
+          r.onsoundend = ()=>{ diagLog('onsoundend'); };
+          r.onaudioend = ()=>{ diagLog('onaudioend'); };
+          const prevOnResult = r.onresult;
+          r.onresult = (ev)=>{ diagLog('onresult (' + ev.results.length + ' Segmente)'); if(prevOnResult) prevOnResult(ev); };
+          r.onerror = (ev)=>{ diagError(ev.error || 'Unbekannter Fehler'); try{ if(window.stopRecording) window.stopRecording(); }catch(e){} };
+          r.onend = ()=>{
+            diagLog('onend');
+            if(window.isRecording){
+              diagSetState('automatischer Neustart...', 'state-warn');
+              try { r.start(); } catch(e) { diagLog('Restart Fehler: ' + e.message); }
+            } else {
+              diagSetState('beendet', 'state-warn');
+            }
+          };
+        }
+      }catch(e){
+        diagError('Init-Hook Fehler: ' + e.message);
+      }
+    }
+
     window.__memotag.diag = { diagSetState, diagLog, diagError, startMicMeter, stopMicMeter };
   })();
 </script>
 
 
+<script id="override-start-stop">
+// --- Override start/stop for Mic-Meter (wird jetzt nur von MediaRecorder benutzt) ---
+// Die Logik in dieser Sektion wurde in die main-script Blöcke verschoben, um sie zu vereinfachen.
+// Die ursprünglichen Funktionen 'startRecording' und 'stopRecording' im Haupt-Script wurden 
+// durch die neuen MediaRecorder-Funktionen ersetzt. Diese Sektion wird nun entfernt, um 
+// Redundanz zu vermeiden.
+</script>
+
 <script>
+
 document.addEventListener('DOMContentLoaded', () => {
     const hash = location.hash;
     if (hash === '#new') {
@@ -2883,16 +2990,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e) e.scrollIntoView({behavior:'smooth', block:'start'});
     }
 });
+
 </script>
 <script>
+
+// ---- iOS Fallback: Audioaufnahme/-Upload + Transkription ----
 function isIOS() {
     return /iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
+// NOTE: Die Funktion fileToBase64 wurde optimiert und in die callLLMAPI Logik integriert.
+// Wir behalten die Helper-Funktionen bei, um sie im Hauptscript zu verwenden.
+
+// Konvertiert File Blob zu Base64 String
 async function fileToBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onload = () => resolve(reader.result.split(',')[1]); // Nur Base64-Teil
         reader.onerror = error => reject(error);
         reader.readAsDataURL(file);
     });
@@ -2908,13 +3022,14 @@ function normalizeMime(file) {
     if (name.endsWith('.wav')) return 'audio/wav';
     if (name.endsWith('.ogg')) return 'audio/ogg';
     if (name.endsWith('.webm')) return 'audio/webm';
-    if (name.endsWith('.png')) return 'image/png';
-    if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg';
+    if (name.endsWith('.png')) return 'image/png'; // NEU: Image Mime
+    if (name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'image/jpeg'; // NEU: Image Mime
     return 'application/octet-stream';
 }
 
 
 async function transcribeAudio(file, apiKey, provider) {
+    // Size guard (most APIs support at least ~20-25MB; keep it conservative)
     const maxMB = 20;
     if (file.size > maxMB * 1024 * 1024) {
         throw new Error(`Audiodatei ist größer als ${maxMB} MB.`);
@@ -2940,6 +3055,7 @@ async function transcribeAudio(file, apiKey, provider) {
     }
 
     if (provider === 'anthropic') {
+        // Claude Messages API mit input_audio Block
         const url = 'https://api.anthropic.com/v1/messages';
         const b64 = await fileToBase64(file);
         const mime = normalizeMime(file);
@@ -2951,7 +3067,7 @@ async function transcribeAudio(file, apiKey, provider) {
                 role: 'user',
                 content: [
                     { type: 'text', text: 'Transkribiere dieses Audio auf Deutsch.' },
-                    { type: 'image', source: { type: 'base64', data: b64, media_type: mime } }
+                    { type: 'image', source: { type: 'base64', data: b64, media_type: mime } } // Anthropic verwendet 'image' für alle Binärdaten in diesem Kontext
                 ]
             }]
         };
@@ -2969,13 +3085,16 @@ async function transcribeAudio(file, apiKey, provider) {
             const msg = data.error?.message || data.error?.type || 'Unbekannter Fehler';
             throw new Error(`Anthropic-Fehler (${resp.status}): ${msg}`);
         }
+        // Response: content is an array of blocks; find text
         const block = (data.content || []).find(b => b.type === 'text');
         return (block && block.text) || '';
     }
 
     if (provider === 'gemini') {
+        // Gemini: generateContent mit inlineData
         const mime = normalizeMime(file);
         const b64 = await fileToBase64(file);
+        // Modell auf ein unterstütztes Multimodal-Modell aktualisiert (gemini-2.5-flash)
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
         const body = {
             contents: [{
@@ -3002,13 +3121,30 @@ async function transcribeAudio(file, apiKey, provider) {
 
     throw new Error('Unbekannter KI-Anbieter für Audio-Transkription.');
 }
+// 
+// 
+
+
+// Hook in nach DOMContentLoaded (wurde in main-script verschoben)
+// document.addEventListener('DOMContentLoaded', initIOSFallback);
+
 </script>
 <script>
+
+// ---- MediaRecorder Fallback (Desktop): Direktaufnahme am PC ----
+// Entfernte die Deklaration von __mr, __mrStream, __mrChunks, __mrRecording, da sie im Hauptskript deklariert sind.
 function stopStream(stream){ try{ if(stream) stream.getTracks().forEach(t=>t.stop()); }catch(_){} }
 
 function initMediaRecorderFallback(){
+    // Diagnose-Log hinzufügen, um zu sehen, ob die Funktion aufgerufen wird
     try { if(window.__memotag?.diag) window.__memotag.diag.diagLog('Init: MediaRecorder Fallback (PC Aufnahme)'); } catch(_) {}
+
+    // Die Logik für den Klick wird jetzt direkt in toggleRecording behandelt
 }
+
+// Hook in nach DOMContentLoaded (wurde in main-script verschoben)
+// document.addEventListener('DOMContentLoaded', initMediaRecorderFallback);
+
 </script>
 </body>
 </html>
