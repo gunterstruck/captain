@@ -285,6 +285,16 @@
         .btn-icon:hover {
             background: #E5E7EB;
         }
+
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+            background-image: none !important;
+            background-color: #E5E7EB !important;
+            color: #9CA3AF !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
         
         .record-actions {
             display: flex;
@@ -989,6 +999,8 @@
         let isApiSetupExpanded = false;
 
         const DIARY_KEY = 'diary_entries_v2';
+        const isNFCSupported = 'NDEFReader' in window;
+
 
         document.addEventListener('DOMContentLoaded', () => {
             loadAPIKey();
@@ -1000,14 +1012,11 @@
             setupEventListeners();
             updateAvailableTags(); 
             
-            initMediaRecorderFallback();
-            initIOSFallback();
-            
-            updateNFCButton();
-            updateNFCWriteButton();
+            setupFeatureDetection();
 
-            document.getElementById('diagnostics').classList.add('collapsed');
-            
+            if(document.getElementById('diagnostics')) {
+                document.getElementById('diagnostics').classList.add('collapsed');
+            }
         });
         
         function migrateStripImages() {
@@ -1075,13 +1084,14 @@
         
         function toggleDiagnostics() {
             const diag = document.getElementById('diagnostics');
-            diag.classList.toggle('collapsed');
+            if (diag) diag.classList.toggle('collapsed');
         }
 
 
         function setupEventListeners() {
             document.getElementById('headerTitle').addEventListener('click', toggleApiSetup);
-            document.getElementById('diagHeader').addEventListener('click', toggleDiagnostics);
+            const diagHeader = document.getElementById('diagHeader');
+            if (diagHeader) diagHeader.addEventListener('click', toggleDiagnostics);
             
             document.getElementById('apiKey').addEventListener('change', saveAPIKey);
             document.getElementById('apiProvider').addEventListener('change', saveAPIKey);
@@ -1158,37 +1168,48 @@
             const writeNFCBtn = document.getElementById('writeNFCBtn');
             if (writeNFCBtn) writeNFCBtn.addEventListener('click', writeNFC);
         }
+
+        function setupFeatureDetection() {
+            // iOS Fallback for recording hint
+            const iosHint = document.getElementById('iosHint');
+            if (iosHint && isIOS()) {
+                iosHint.style.display = 'block';
+            }
+
+            // Handle NFC feature availability for static buttons
+            const nfcDependentButtons = [
+                document.getElementById('photoToNfcBtn'),
+                document.getElementById('nfcBtn'),
+                document.getElementById('writeNFCBtn')
+            ];
+
+            if (isNFCSupported) {
+                document.getElementById('nfcBtn').style.display = 'inline-flex';
+            } else {
+                nfcDependentButtons.forEach(btn => {
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.title = 'NFC wird auf diesem Gerät nicht unterstützt.';
+                        // Make nfcBtn visible so it appears grayed out, others are always visible
+                        if (btn.id === 'nfcBtn') {
+                            btn.style.display = 'inline-flex';
+                        }
+                    }
+                });
+            }
+            updateNFCWriteButton(); // Set initial visibility of the main write button
+        }
         
         function updateNFCWriteButton() {
             const writeNFCBtn = document.getElementById('writeNFCBtn');
             if (!writeNFCBtn) return;
             
-            const isNFCSupported = ('NDEFReader' in window);
             const hasText = document.getElementById('summary').value.trim().length > 0;
-            
-            if (isNFCSupported && hasText) {
-                writeNFCBtn.style.display = 'inline-flex';
-                writeNFCBtn.disabled = false;
-            } else {
-                writeNFCBtn.style.display = 'none';
-                writeNFCBtn.disabled = true;
-            }
-        }
-
-
-        function initSpeechRecognition() {} 
-        
-        function updateNFCButton() {
-            const nfcBtn = document.getElementById('nfcBtn');
-            if (nfcBtn && ('NDEFReader' in window)) {
-                nfcBtn.style.display = 'inline-flex';
-            } else if (nfcBtn) {
-                nfcBtn.style.display = 'none';
-            }
+            writeNFCBtn.style.display = (hasText && isNFCSupported) ? 'inline-flex' : 'none';
         }
         
         async function writeTextToNFC(textToWrite, buttonEl = null) {
-            if (!('NDEFReader' in window)) {
+            if (!isNFCSupported) {
                 showError('NFC-Schreiben wird von diesem Gerät/Browser nicht unterstützt.');
                 return false;
             }
@@ -1197,8 +1218,6 @@
                 showError('Kein Text zum Schreiben auf den NFC-Tag vorhanden.');
                 return false;
             }
-            
-            let originalText = buttonEl ? buttonEl.textContent : 'Auf NFC-Tag speichern 📲';
             
             showSuccess('NFC-Tag zum Beschreiben bereithalten...');
 
@@ -1217,10 +1236,47 @@
             }
         }
 
+        async function prepareTextForNFC(text) {
+            const MAX_NFC_SIZE = 800;
+            let currentText = text;
+
+            // Check if the initial text is already small enough.
+            if (new Blob([currentText]).size <= MAX_NFC_SIZE) {
+                return currentText;
+            }
+
+            // Text is too large, ask AI to shorten it.
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const provider = document.getElementById('apiProvider').value;
+            if (!apiKey) {
+                throw new Error("API-Schlüssel wird benötigt, um den Text zu kürzen.");
+            }
+
+            const shorteningPrompt = `Der folgende Text ist zu lang für einen NFC-Tag. Kürze ihn prägnant auf unter ${MAX_NFC_SIZE} Bytes, ohne wesentliche Informationen zu verlieren. Wenn es sich um "Schlüssel: Wert"-Paare handelt, kürze nur die Werte. Gib NUR den final gekürzten Text zurück.\n\nOriginaltext:\n---\n${currentText}`;
+
+            showSuccess(`Text zu groß (${new Blob([currentText]).size} Bytes). KI wird um Kürzung gebeten...`);
+            
+            const shortenedText = await callLLMAPI(shorteningPrompt, apiKey, provider);
+
+            const finalSize = new Blob([shortenedText]).size;
+            if (finalSize > MAX_NFC_SIZE) {
+                throw new Error(`KI-Kürzung fehlgeschlagen. Text ist immer noch zu groß (${finalSize} Bytes).`);
+            }
+
+            showSuccess(`Text erfolgreich auf ${finalSize} Bytes gekürzt!`);
+            return shortenedText;
+        }
+
+
         async function writeNFC() {
             const textToWrite = document.getElementById('summary').value.trim();
             const btn = document.getElementById('writeNFCBtn');
-            await writeTextToNFC(textToWrite, btn);
+            try {
+                const finalText = await prepareTextForNFC(textToWrite);
+                await writeTextToNFC(finalText, btn);
+            } catch (error) {
+                showError(error.message);
+            }
         }
 
         async function writeEntryToNFC(id, buttonEl) {
@@ -1229,10 +1285,14 @@
                 showError('Eintrag nicht gefunden oder leer.');
                 return;
             }
-            await writeTextToNFC(entry.text, buttonEl);
+            try {
+                const finalText = await prepareTextForNFC(entry.text);
+                await writeTextToNFC(finalText, buttonEl);
+            } catch (error) {
+                showError(error.message);
+            }
         }
         
-        // ✅ NEU: Konvertiert kompakten Key-Value-Text in eine Markdown-Tabelle
         function convertKeyValueToMarkdownTable(text) {
             const lines = text.trim().split('\n');
             let markdown = '| Merkmal | Wert |\n|---|---|\n';
@@ -1247,9 +1307,43 @@
             return markdown;
         }
 
+        function convertMarkdownTableToKeyValue(markdown) {
+            if (!markdown || !markdown.includes('|---')) {
+                return markdown;
+            }
+            const lines = markdown.trim().split('\n');
+            let keyValuePairs = [];
+            for (let i = 2; i < lines.length; i++) {
+                const parts = lines[i].split('|').map(s => s.trim());
+                if (parts.length >= 3) {
+                    const key = parts[1];
+                    const value = parts[2];
+                    if (key) {
+                        keyValuePairs.push(`${key}: ${value}`);
+                    }
+                }
+            }
+            return keyValuePairs.join('\n');
+        }
+
+        async function writeTableToNFC(id, buttonEl) {
+            const entry = getEntries().find(e => e.id === id);
+            if (!entry || !entry.text) {
+                showError('Eintrag nicht gefunden oder leer.');
+                return;
+            }
+            try {
+                const compactText = convertMarkdownTableToKeyValue(entry.text);
+                const finalText = await prepareTextForNFC(compactText);
+                await writeTextToNFC(finalText, buttonEl);
+            } catch (error) {
+                showError('Fehler bei der Konvertierung oder Kürzung für NFC: ' + error.message);
+            }
+        }
+
 
         async function readNFC() {
-            if (!('NDEFReader' in window)) {
+            if (!isNFCSupported) {
                 showError('NFC-Lesen wird von diesem Gerät/Browser nicht unterstützt.');
                 return;
             }
@@ -1289,10 +1383,8 @@
             }
         }
         
-        // ✅ ÜBERARBEITET: Erkennt und konvertiert das kompakte NFC-Format
         async function processNFCReadout(text) {
              let processedText = text;
-             // Prüfen, ob der Text im kompakten Format ist und KEINE Markdown-Tabelle
              const isCompactFormat = text.includes('\n') && text.includes(':') && !text.includes('|---');
 
              if (isCompactFormat) {
@@ -1301,7 +1393,7 @@
                      showSuccess('Kompaktdaten vom NFC-Tag erkannt und in Tabelle umgewandelt.');
                  } catch (e) {
                      console.error("Fehler beim Umwandeln des NFC-Textes in eine Tabelle:", e);
-                     processedText = text; // Fallback auf Originaltext bei Fehler
+                     processedText = text; 
                  }
              }
 
@@ -1355,7 +1447,6 @@
             reader.readAsDataURL(file);
         }
         
-        // ✅ ÜBERARBEITET: Neuer Workflow für Foto-zu-NFC mit kompaktem Format
         async function handlePhotoToNfc(e) {
             const file = e.target.files && e.target.files[0];
             if (!file) return;
@@ -1402,18 +1493,20 @@ am:`;
                     throw new Error("Die KI hat keine gültigen Daten zurückgegeben.");
                 }
 
-                updateRecordButton('Analyse fertig. Schreibe auf NFC...', 'processing');
-                const writeSuccess = await writeTextToNFC(compactData);
+                updateRecordButton('Analyse fertig. Bereite Daten für NFC vor...', 'processing');
+                const finalText = await prepareTextForNFC(compactData);
+
+                const writeSuccess = await writeTextToNFC(finalText);
                 
                 if (writeSuccess) {
                     showSuccess('Daten erfolgreich auf NFC-Tag geschrieben!');
-                } // Fehlermeldung wird von writeTextToNFC angezeigt
+                } 
 
             } catch (error) {
-                showError('Fehler beim Extrahieren der Daten: ' + error.message);
+                showError('Fehler beim Verarbeiten des Fotos für NFC: ' + error.message);
             } finally {
                 resetForm();
-                e.target.value = ''; // Input leeren für nächste Aufnahme
+                e.target.value = ''; 
             }
         }
 
@@ -1425,7 +1518,8 @@ am:`;
             }
 
             if (provider === 'openai' || provider === 'anthropic' || provider === 'gemini') {
-                return callLLMAPI('Beschreibe dieses Bild detailliert.', apiKey, provider, 0, file);
+                const imagePrompt = "Interpretiere das folgende Bild. Beschreibe, was zu sehen ist, und extrahiere alle relevanten Texte, Daten oder Informationen. Formatiere deine Antwort übersichtlich.";
+                return callLLMAPI(imagePrompt, apiKey, provider, 0, file);
             }
 
             throw new Error('Der ausgewählte KI-Anbieter unterstützt möglicherweise keine Bildanalyse.');
@@ -1433,6 +1527,15 @@ am:`;
 
 
         function toggleRecording() {
+            // iOS Fallback: MediaRecorder ist nicht verfügbar, daher öffnen wir stattdessen die Dateiauswahl.
+            if (isIOS()) {
+                if (!isRecording) { // Verhindert das Öffnen der Dateiauswahl, wenn theoretisch schon aufgenommen wird
+                    document.getElementById('audioInput').click();
+                }
+                return; // Funktion hier für iOS beenden
+            }
+            
+            // Standard-MediaRecorder-Logik für PCs und Android
             if (isRecording) {
                 stopMediaRecorder();
                 isRecording = false;
@@ -1556,25 +1659,8 @@ am:`;
         async function handleAudioFileSelection(e) {
             const file = e.target.files && e.target.files[0];
             if (!file) return;
-
-            if (!window.MediaRecorder) {
-                await processAudioFile(file);
-            }
-        }
-
-        function initMediaRecorderFallback(){ }
-        function initIOSFallback() {
-            const iosHint = document.getElementById('iosHint');
-            const audioInput = document.getElementById('audioInput');
-            if (iosHint && !window.MediaRecorder) {
-                iosHint.style.display = 'block';
-                document.getElementById('recordBtn').addEventListener('click', (e) => {
-                    e.preventDefault();
-                    if (!isRecording) {
-                        audioInput.click();
-                    }
-                });
-            }
+            // Der Pfad wird jetzt korrekt von iOS genommen, nachdem toggleRecording das Input-Feld geklickt hat.
+            await processAudioFile(file);
         }
         
         function stopStream(stream){ 
@@ -1606,12 +1692,13 @@ am:`;
             }
 
             const isProcessing = statusText.includes('Warte auf KI') || 
-                                 statusText.includes('Erstelle Zusammenfassung') || 
+                                 statusText.includes('Erstelle') ||
                                  statusText.includes('Verarbeite') || 
                                  statusText.includes('NFC') ||
                                  statusText.includes('analysiert') ||
                                  statusText.includes('Analyse') ||
-                                 statusText.includes('Beschreibung');
+                                 statusText.includes('interpretiert') ||
+                                 statusText.includes('formuliert');
 
             if (isProcessing) {
                  if (status) status.classList.add('processing');
@@ -1625,8 +1712,8 @@ am:`;
                  if (status) status.classList.remove('processing');
                  if (btn) btn.disabled = false;
                  if (imgBtn) imgBtn.disabled = false;
-                 if (nfcBtn) nfcBtn.disabled = false;
-                 if (photoToNfcBtn) photoToNfcBtn.disabled = false;
+                 if (nfcBtn && isNFCSupported) nfcBtn.disabled = false;
+                 if (photoToNfcBtn && isNFCSupported) photoToNfcBtn.disabled = false;
             }
         }
 
@@ -1689,50 +1776,64 @@ am:`;
         }
 
         async function summarize(transcript, imageFile) {
-            if (!transcript && !imageFile) { 
-                showError('Kein Transkript oder Bild vorhanden.'); 
+            if (!transcript && !imageFile) {
+                showError('Kein Transkript oder Bild vorhanden.');
                 resetForm();
-                return; 
+                return;
             }
 
             const apiKey = document.getElementById('apiKey').value.trim();
             const provider = document.getElementById('apiProvider').value;
-            
-            if (!apiKey) { 
-                showError('Bitte gib einen API-Schlüssel ein.'); 
+
+            if (!apiKey) {
+                showError('Bitte gib einen API-Schlüssel ein.');
                 resetForm();
-                return; 
+                return;
             }
 
             document.getElementById('loading').classList.add('show');
             document.getElementById('error').classList.remove('show');
             document.getElementById('summarySection').classList.add('show');
-            
+
             if (imageFile) {
-                 document.getElementById('status').textContent = 'KI erstellt Bildbeschreibung...';
+                 document.getElementById('status').textContent = 'KI interpretiert Bild...';
             } else if (transcript) {
-                 document.getElementById('status').textContent = 'KI erstellt Zusammenfassung...';
+                 document.getElementById('status').textContent = 'KI verarbeitet Text...';
             }
 
             try {
                 let summary = '';
                 if (imageFile) {
+                    // For images, the behavior is to describe/interpret them. This matches the first requirement.
                     summary = await imageToText(imageFile, apiKey, provider);
                 } else if (transcript) {
-                    summary = await callLLMAPI(transcript, apiKey, provider);
+                    // For text, apply the new conditional logic.
+                    const lineCount = (transcript.match(/\n/g) || []).length + 1;
+                    let llmPrompt = '';
+
+                    if (lineCount >= 10) {
+                        // For long texts: summary + reformulation
+                        document.getElementById('status').textContent = 'KI erstellt Zusammenfassung und Bericht...';
+                        llmPrompt = `Erstelle zuerst eine kurze Zusammenfassung (1-3 Sätze) und formuliere DANACH den gesamten folgenden Text als professionellen Bericht (z.B. Besuchsbericht, Memo, Protokoll) um. Halte dich exakt an diese Formatierung:\n\n**Zusammenfassung**\n[Hier die Zusammenfassung einfügen]\n\n---\n\n**Bericht**\n[Hier den umformulierten Bericht einfügen]\n\nOriginaltext:\n---\n${transcript}`;
+                    } else {
+                        // For short texts: just reformulation
+                        document.getElementById('status').textContent = 'KI formuliert Bericht...';
+                        llmPrompt = `Formuliere den folgenden Text als professionellen Bericht um (z.B. als Besuchsbericht, Memo oder Protokoll). Gib nur den umformulierten Text aus, ohne zusätzliche Einleitung oder Kommentare.\n\nOriginaltext:\n---\n${transcript}`;
+                    }
+                    summary = await callLLMAPI(llmPrompt, apiKey, provider);
                 }
 
                 document.getElementById('summary').value = summary;
                 document.getElementById('loading').classList.remove('show');
-                
-                updateRecordButton(imageFile ? 'Bildbeschreibung fertig!' : 'Zusammenfassung fertig!');
-                
+
+                updateRecordButton(imageFile ? 'Bild-Interpretation fertig!' : 'Text-Verarbeitung fertig!');
+
                 currentTags = [];
                 updateCurrentTags();
                 updateNFCWriteButton();
-                
+
             } catch (error) {
-                const errorMessage = 'Fehler beim Erstellen der Notiz: ' + error.message;
+                const errorMessage = 'Fehler bei der KI-Verarbeitung: ' + error.message;
                 showError(errorMessage);
                 document.getElementById('loading').classList.remove('show');
                 resetForm();
@@ -2081,7 +2182,7 @@ am:`;
                     cb.setAttribute('aria-label', `Notiz vom ${new Date(entry.timestamp).toLocaleDateString('de-DE')} auswählen`);
                     cb.addEventListener('change', e => {
                         if (e.target.checked) selectedEntries.add(entry.id);
-                        else selectedEntries.delete(e.target.id);
+                        else selectedEntries.delete(entry.id);
                         updateBatchActionsVisibility();
                     });
                     entryDiv.appendChild(cb);
@@ -2158,19 +2259,24 @@ am:`;
                     ['Teilen', 'btn-icon', () => shareEntry(entry.id)]
                 ];
 
-                if ('NDEFReader' in window) {
-                    btnConfigs.push(['Auf NFC schreiben', 'btn-icon', (btn) => writeEntryToNFC(entry.id, btn)]);
+                if (isNFCSupported) {
+                    if (entry.text && entry.text.includes('|---')) {
+                        btnConfigs.push(['Parameter an NFC Tag schreiben', 'btn-action', (btn) => writeTableToNFC(entry.id, btn)]);
+                    } else {
+                        btnConfigs.push(['Auf NFC schreiben', 'btn-icon', (btn) => writeEntryToNFC(entry.id, btn)]);
+                    }
                 }
-
+                
                 btnConfigs.push(['Löschen', 'delete-btn', () => deleteEntry(entry.id)]);
 
                 btnConfigs.forEach(([label, className, handler]) => {
                     const btn = document.createElement('button');
                     btn.className = className;
                     btn.textContent = label;
+                    
                     btn.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        handler();
+                        handler(btn);
                     });
                     actions.appendChild(btn);
                 });
@@ -2205,7 +2311,7 @@ am:`;
             allBtn.addEventListener('click', () => filterByTag(null));
             container.appendChild(allBtn);
 
-            Array.from(allTags).forEach(tag => {
+            Array.from(allTags).sort().forEach(tag => {
                 const tagBtn = document.createElement('div');
             tagBtn.className = `filter-tag ${activeTagFilter === tag ? 'active' : ''}`;
                 tagBtn.textContent = tag;
@@ -2662,7 +2768,7 @@ am:`;
                 model = 'gpt-4o';
                 
                 let content = [{ type: 'text', text: userPrompt }];
-                if (currentImageBase64) { // Note: This uses the global state, might need adjustment for the new workflow
+                if (currentImageBase64) {
                     content.push({
                         type: 'image_url',
                         image_url: {
@@ -2886,7 +2992,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 <script>
 function isIOS() {
-    return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    return /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.MSStream;
 }
 
 async function fileToBase64(file) {
@@ -2944,7 +3050,7 @@ async function transcribeAudio(file, apiKey, provider) {
         const b64 = await fileToBase64(file);
         const mime = normalizeMime(file);
         const body = {
-            model: 'claude-3-5-haiku-latest',
+            model: 'claude-3-haiku-20240307',
             max_tokens: 2000,
             system: 'Du bist ein präziser Transkriptionsassistent. Transkribiere nur den gesprochenen deutschen Text, ohne Zusatz.',
             messages: [{
@@ -3005,10 +3111,6 @@ async function transcribeAudio(file, apiKey, provider) {
 </script>
 <script>
 function stopStream(stream){ try{ if(stream) stream.getTracks().forEach(t=>t.stop()); }catch(_){} }
-
-function initMediaRecorderFallback(){
-    try { if(window.__memotag?.diag) window.__memotag.diag.diagLog('Init: MediaRecorder Fallback (PC Aufnahme)'); } catch(_) {}
-}
 </script>
 </body>
 </html>
