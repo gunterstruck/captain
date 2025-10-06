@@ -1607,14 +1607,28 @@ am:`;
         }
 
         async function processAudioRecording() {
-            try{
+            try {
+                // ✅ NEU: Prüfen, ob überhaupt Audiodaten aufgezeichnet wurden.
+                if (!__mrChunks || __mrChunks.length === 0) {
+                    throw new Error("Keine Audiodaten aufgezeichnet. Die Aufnahme war möglicherweise zu kurz.");
+                }
+
                 const blobType = __mr && __mr.mimeType ? __mr.mimeType : 'audio/webm';
                 const blob = new Blob(__mrChunks, { type: blobType });
+
+                console.log(`Audio-Blob erstellt: Größe = ${blob.size} bytes, Typ = ${blob.type}`);
+
+                // ✅ NEU: Prüfen, ob der erstellte Blob eine minimale Größe hat.
+                if (blob.size < 100) {
+                    throw new Error(`Aufnahme ist zu kurz oder leer (Größe: ${blob.size} bytes).`);
+                }
+
                 const file = new File([blob], 'aufnahme.' + (blobType.includes('ogg') ? 'ogg' : 'webm'), { type: blobType });
-                
                 await processAudioFile(file);
 
-            }catch(err){
+            } catch (err) {
+                // ✅ NEU: Detailliertere Fehlerprotokollierung
+                console.error("Fehler in processAudioRecording:", err);
                 showError('Verarbeitung fehlgeschlagen: ' + (err.message || err));
                 resetForm();
             }
@@ -1645,6 +1659,8 @@ am:`;
 
             } catch(err) {
                  const errorMessage = 'Transkription fehlgeschlagen: ' + (err.message || err);
+                // ✅ NEU: Detailliertere Fehlerprotokollierung
+                console.error("Fehler in processAudioFile:", err);
                 showError(errorMessage);
                 resetForm();
                 return;
@@ -1834,6 +1850,8 @@ am:`;
 
             } catch (error) {
                 const errorMessage = 'Fehler bei der KI-Verarbeitung: ' + error.message;
+                // ✅ NEU: Detailliertere Fehlerprotokollierung
+                console.error("Fehler in summarize:", error);
                 showError(errorMessage);
                 document.getElementById('loading').classList.remove('show');
                 resetForm();
@@ -3114,4 +3132,3 @@ function stopStream(stream){ try{ if(stream) stream.getTracks().forEach(t=>t.sto
 </script>
 </body>
 </html>
-
