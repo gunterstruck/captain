@@ -870,8 +870,8 @@
         </div>
 
         <div class="summary-section" id="summarySection">
-            <h2 class="section-title">Zusammenfassung</h2>
-            <textarea id="summary" aria-label="Zusammenfassung bearbeiten"></textarea>
+            <h2 class="section-title">Erfassung</h2>
+            <textarea id="summary" aria-label="Erfassung bearbeiten"></textarea>
             
             <div class="tags-section">
                 <label>Verfügbare Tags:</label>
@@ -1208,32 +1208,35 @@
             writeNFCBtn.style.display = (hasText && isNFCSupported) ? 'inline-flex' : 'none';
         }
         
-        async function writeTextToNFC(textToWrite, buttonEl = null) {
-            if (!isNFCSupported) {
-                showError('NFC-Schreiben wird von diesem Gerät/Browser nicht unterstützt.');
-                return false;
-            }
+        async function writeTextToNFC(textToWrite) {
+          if (!isNFCSupported) {
+            showError('NFC nicht unterstützt.');
+            return false;
+          }
 
-            if (!textToWrite) {
-                showError('Kein Text zum Schreiben auf den NFC-Tag vorhanden.');
-                return false;
-            }
-            
-            showSuccess('NFC-Tag zum Beschreiben bereithalten...');
+          if (!textToWrite) {
+            showError('Kein Text zum Schreiben auf den NFC-Tag vorhanden.');
+            return false;
+          }
 
-            try {
-                const ndef = new NDEFReader();
-                await ndef.write(textToWrite);
-                showSuccess('Daten erfolgreich auf NFC-Tag geschrieben!');
-                return true;
-                
-            } catch (error) {
-                let errMsg = `Fehler beim Schreiben: ${error.message}`;
-                if (error.name === 'NotAllowedError') errMsg = 'NFC-Zugriff verweigert oder Tag nicht rechtzeitig gescannt.';
-                else if (error.name === 'NotSupportedError') errMsg = 'Tag ist schreibgeschützt oder hat nicht genug Speicher.';
-                showError(errMsg);
-                return false;
-            }
+          try {
+            const ndef = new NDEFReader();
+            showSuccess('Halte den NFC-Tag an dein Gerät...');
+            await Promise.race([
+              ndef.write(textToWrite),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Timeout: Kein Tag erkannt.")), 10000)
+              )
+            ]);
+            showSuccess('Daten erfolgreich geschrieben!');
+            return true;
+          } catch (error) {
+            let errMsg = `Fehler beim NFC-Schreiben: ${error.message}`;
+            if (error.name === 'NotAllowedError') errMsg = 'NFC-Zugriff verweigert oder Tag nicht rechtzeitig gescannt.';
+            else if (error.name === 'NotSupportedError') errMsg = 'Tag ist schreibgeschützt oder hat nicht genug Speicher.';
+            showError(errMsg);
+            return false;
+          }
         }
 
         async function prepareTextForNFC(text) {
@@ -1270,16 +1273,15 @@
 
         async function writeNFC() {
             const textToWrite = document.getElementById('summary').value.trim();
-            const btn = document.getElementById('writeNFCBtn');
             try {
                 const finalText = await prepareTextForNFC(textToWrite);
-                await writeTextToNFC(finalText, btn);
+                await writeTextToNFC(finalText);
             } catch (error) {
                 showError(error.message);
             }
         }
 
-        async function writeEntryToNFC(id, buttonEl) {
+        async function writeEntryToNFC(id) {
             const entry = getEntries().find(e => e.id === id);
             if (!entry || !entry.text) {
                 showError('Eintrag nicht gefunden oder leer.');
@@ -1287,7 +1289,7 @@
             }
             try {
                 const finalText = await prepareTextForNFC(entry.text);
-                await writeTextToNFC(finalText, buttonEl);
+                await writeTextToNFC(finalText);
             } catch (error) {
                 showError(error.message);
             }
@@ -1326,7 +1328,7 @@
             return keyValuePairs.join('\n');
         }
 
-        async function writeTableToNFC(id, buttonEl) {
+        async function writeTableToNFC(id) {
             const entry = getEntries().find(e => e.id === id);
             if (!entry || !entry.text) {
                 showError('Eintrag nicht gefunden oder leer.');
@@ -1335,7 +1337,7 @@
             try {
                 const compactText = convertMarkdownTableToKeyValue(entry.text);
                 const finalText = await prepareTextForNFC(compactText);
-                await writeTextToNFC(finalText, buttonEl);
+                await writeTextToNFC(finalText);
             } catch (error) {
                 showError('Fehler bei der Konvertierung oder Kürzung für NFC: ' + error.message);
             }
@@ -1510,7 +1512,6 @@ am:`;
             }
         }
 
-
         async function imageToText(file, apiKey, provider) {
             const maxMB = 5;
             if (file.size > maxMB * 1024 * 1024) {
@@ -1518,7 +1519,7 @@ am:`;
             }
 
             if (provider === 'openai' || provider === 'anthropic' || provider === 'gemini') {
-                const imagePrompt = "Interpretiere das folgende Bild. Beschreibe, was zu sehen ist, und extrahiere alle relevanten Texte, Daten oder Informationen. Formatiere deine Antwort übersichtlich.";
+                const imagePrompt = "Analysiere das folgende Bild. Handelt es sich um ein Formular, eine Datentabelle oder eine Liste von Parametern, extrahiere alle Informationen und präsentiere sie als saubere Markdown-Tabelle mit den Spalten 'Parameter' und 'Wert'. Andernfalls, wenn es sich um ein allgemeines Foto handelt, beschreibe detailliert, was zu sehen ist.";
                 return callLLMAPI(imagePrompt, apiKey, provider, 0, file);
             }
 
@@ -1608,7 +1609,6 @@ am:`;
 
         async function processAudioRecording() {
             try {
-                // ✅ NEU: Prüfen, ob überhaupt Audiodaten aufgezeichnet wurden.
                 if (!__mrChunks || __mrChunks.length === 0) {
                     throw new Error("Keine Audiodaten aufgezeichnet. Die Aufnahme war möglicherweise zu kurz.");
                 }
@@ -1618,7 +1618,6 @@ am:`;
 
                 console.log(`Audio-Blob erstellt: Größe = ${blob.size} bytes, Typ = ${blob.type}`);
 
-                // ✅ NEU: Prüfen, ob der erstellte Blob eine minimale Größe hat.
                 if (blob.size < 100) {
                     throw new Error(`Aufnahme ist zu kurz oder leer (Größe: ${blob.size} bytes).`);
                 }
@@ -1627,7 +1626,6 @@ am:`;
                 await processAudioFile(file);
 
             } catch (err) {
-                // ✅ NEU: Detailliertere Fehlerprotokollierung
                 console.error("Fehler in processAudioRecording:", err);
                 showError('Verarbeitung fehlgeschlagen: ' + (err.message || err));
                 resetForm();
@@ -1659,7 +1657,6 @@ am:`;
 
             } catch(err) {
                  const errorMessage = 'Transkription fehlgeschlagen: ' + (err.message || err);
-                // ✅ NEU: Detailliertere Fehlerprotokollierung
                 console.error("Fehler in processAudioFile:", err);
                 showError(errorMessage);
                 resetForm();
@@ -1675,7 +1672,6 @@ am:`;
         async function handleAudioFileSelection(e) {
             const file = e.target.files && e.target.files[0];
             if (!file) return;
-            // Der Pfad wird jetzt korrekt von iOS genommen, nachdem toggleRecording das Input-Feld geklickt hat.
             await processAudioFile(file);
         }
         
@@ -1820,22 +1816,10 @@ am:`;
             try {
                 let summary = '';
                 if (imageFile) {
-                    // For images, the behavior is to describe/interpret them. This matches the first requirement.
                     summary = await imageToText(imageFile, apiKey, provider);
                 } else if (transcript) {
-                    // For text, apply the new conditional logic.
-                    const lineCount = (transcript.match(/\n/g) || []).length + 1;
-                    let llmPrompt = '';
-
-                    if (lineCount >= 10) {
-                        // For long texts: summary + reformulation
-                        document.getElementById('status').textContent = 'KI erstellt Zusammenfassung und Bericht...';
-                        llmPrompt = `Erstelle zuerst eine kurze Zusammenfassung (1-3 Sätze) und formuliere DANACH den gesamten folgenden Text als professionellen Bericht (z.B. Besuchsbericht, Memo, Protokoll) um. Halte dich exakt an diese Formatierung:\n\n**Zusammenfassung**\n[Hier die Zusammenfassung einfügen]\n\n---\n\n**Bericht**\n[Hier den umformulierten Bericht einfügen]\n\nOriginaltext:\n---\n${transcript}`;
-                    } else {
-                        // For short texts: just reformulation
-                        document.getElementById('status').textContent = 'KI formuliert Bericht...';
-                        llmPrompt = `Formuliere den folgenden Text als professionellen Bericht um (z.B. als Besuchsbericht, Memo oder Protokoll). Gib nur den umformulierten Text aus, ohne zusätzliche Einleitung oder Kommentare.\n\nOriginaltext:\n---\n${transcript}`;
-                    }
+                    document.getElementById('status').textContent = 'KI formuliert Text...';
+                    const llmPrompt = `Formuliere den folgenden Text schön und verständlich als Fließtext. Wenn der Text einer Aufzählung ähnelt, wandle ihn in einen gut lesbaren Absatz um. Gib nur den neu formulierten Text zurück, ohne zusätzliche Überschriften oder Kommentare.\n\nOriginaltext:\n---\n${transcript}`;
                     summary = await callLLMAPI(llmPrompt, apiKey, provider);
                 }
 
@@ -1850,7 +1834,6 @@ am:`;
 
             } catch (error) {
                 const errorMessage = 'Fehler bei der KI-Verarbeitung: ' + error.message;
-                // ✅ NEU: Detailliertere Fehlerprotokollierung
                 console.error("Fehler in summarize:", error);
                 showError(errorMessage);
                 document.getElementById('loading').classList.remove('show');
@@ -1975,7 +1958,7 @@ am:`;
             const summary = document.getElementById('summary').value.trim();
 
             if (!summary) { 
-                showError('Bitte gib Text ein (Zusammenfassung).');
+                showError('Bitte gib Text ein (Erfassung).');
                 return;
             }
 
@@ -2279,9 +2262,9 @@ am:`;
 
                 if (isNFCSupported) {
                     if (entry.text && entry.text.includes('|---')) {
-                        btnConfigs.push(['Parameter an NFC Tag schreiben', 'btn-action', (btn) => writeTableToNFC(entry.id, btn)]);
+                        btnConfigs.push(['Parameter an NFC Tag schreiben', 'btn-action', () => writeTableToNFC(entry.id)]);
                     } else {
-                        btnConfigs.push(['Auf NFC schreiben', 'btn-icon', (btn) => writeEntryToNFC(entry.id, btn)]);
+                        btnConfigs.push(['Auf NFC schreiben', 'btn-icon', () => writeEntryToNFC(entry.id)]);
                     }
                 }
                 
@@ -3132,3 +3115,4 @@ function stopStream(stream){ try{ if(stream) stream.getTracks().forEach(t=>t.sto
 </script>
 </body>
 </html>
+
