@@ -1,13 +1,13 @@
 // Version bei Änderungen erhöhen, damit Caches sauber erneuert werden
-const CACHE_NAME = 'sprach-tagebuch-v5';
+const CACHE_NAME = 'sprach-tagebuch-v6';
 const ASSETS_TO_CACHE = [
   '/captain/',
   '/captain/index.html',
   '/captain/offline.html',
   '/captain/manifest.webmanifest',
   '/captain/sw.js',
-  '/captain/icon-192.png',
-  '/captain/icon-512.png',
+  '/captain/icon-192-v2.png',
+  '/captain/icon-512-v2.png',
   // Optional: Screenshots ebenfalls cachen
   '/captain/screenshots/shot1.png',
   '/captain/screenshots/shot2.png'

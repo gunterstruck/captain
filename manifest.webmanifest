@@ -1,57 +1,57 @@
 {
-  "id": "/captain/",
-  "name": "Synaptic Pro",
-  "short_name": "Synaptic",
-  "description": "Schnelle Notizen mit Offline-Modus.",
-  "start_url": "/captain/",
-  "scope": "/captain/",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#4F46E5",
-  "orientation": "portrait",
-  "icons": [
-    {
-      "src": "/captain/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/captain/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Neue Notiz",
-      "short_name": "Neu",
-      "description": "Neue Sprachnotiz aufnehmen",
-      "url": "/captain/#new",
-      "icons": [
-        {
-          "src": "/captain/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Meine Einträge",
-      "short_name": "Einträge",
-      "description": "Gespeicherte Notizen öffnen",
-      "url": "/captain/#entries",
-      "icons": [
-        {
-          "src": "/captain/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    }
-  ],
-  "categories": [
-    "productivity",
-    "utilities",
-    "notes"
-  ]
+"id": "/captain/",
+"name": "Synaptic Pro",
+"short_name": "Synaptic",
+"description": "Schnelle Notizen mit Offline-Modus.",
+"start_url": "/captain/",
+"scope": "/captain/",
+"display": "standalone",
+"background_color": "#ffffff",
+"theme_color": "#4F46E5",
+"orientation": "portrait",
+"icons": [
+{
+"src": "/captain/icon-192-v2.png",
+"sizes": "192x192",
+"type": "image/png",
+"purpose": "any maskable"
+},
+{
+"src": "/captain/icon-512-v2.png",
+"sizes": "512x512",
+"type": "image/png",
+"purpose": "any maskable"
+}
+],
+"shortcuts": [
+{
+"name": "Neue Notiz",
+"short_name": "Neu",
+"description": "Neue Sprachnotiz aufnehmen",
+"url": "/captain/#new",
+"icons": [
+{
+"src": "/captain/icon-192-v2.png",
+"sizes": "192x192"
+}
+]
+},
+{
+"name": "Meine Einträge",
+"short_name": "Einträge",
+"description": "Gespeicherte Notizen öffnen",
+"url": "/captain/#entries",
+"icons": [
+{
+"src": "/captain/icon-192-v2.png",
+"sizes": "192x192"
+}
+]
+}
+],
+"categories": [
+"productivity",
+"utilities",
+"notes"
+]
 }
