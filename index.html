@@ -1335,12 +1335,10 @@
                     await summarize(null, file);
                 } finally {
                     document.getElementById('status').classList.remove('processing');
-                    imagePreview.src = '';
-                    imagePreview.style.display = 'none';
-                    currentImageBase64 = null; 
+                    // Bild NICHT sofort ausblenden; erst nach Erfolg oder manuellem Reset
                 }
                 
-                document.getElementById('transcriptSection').classList.remove('show');
+                // document.getElementById('transcriptSection').classList.remove('show'); // Temporär auskommentiert, damit man das Ergebnis sieht
             };
 
             reader.onerror = () => {
@@ -1351,6 +1349,7 @@
             reader.readAsDataURL(file);
         }
         
+        // ✅ ÜBERARBEITET: Neuer Workflow für Foto-zu-NFC mit kompaktem Format
         async function handlePhotoToNfc(e) {
             const file = e.target.files && e.target.files[0];
             if (!file) return;
@@ -1414,7 +1413,7 @@ am:`;
 
 
         async function imageToText(file, apiKey, provider) {
-            const maxMB = 5;
+            const maxMB = 12; // Erhöht von 5 auf 12 MB
             if (file.size > maxMB * 1024 * 1024) {
                 throw new Error(`Bilddatei ist größer als ${maxMB} MB.`);
             }
@@ -1713,11 +1712,23 @@ am:`;
                 let summary = '';
                 if (imageFile) {
                     summary = await imageToText(imageFile, apiKey, provider);
+                    document.getElementById('summary').value = summary;
                 } else if (transcript) {
-                    summary = await callLLMAPI(transcript, apiKey, provider);
+                    document.getElementById('status').textContent = 'Formuliere den Text sauber um...';
+                    const userPrompt = `Formuliere den folgenden deutschen Text klarer, prägnant und grammatikalisch korrekt um.
+- Behalte die ursprüngliche Bedeutung vollständig bei.
+- Keine Zusammenfassung, keine Kommentare, keine Floskeln.
+- Antworte nur mit dem überarbeiteten Text.
+
+Text:
+---
+${transcript}
+---`;
+                    const sys = 'Du bist ein deutscher Lektor. Gib ausschließlich den überarbeiteten Text zurück – ohne Zusatz.';
+                    summary = await callLLMAPI(userPrompt, apiKey, provider, 0, null, sys);
+                    document.getElementById('summary').value = summary;
                 }
 
-                document.getElementById('summary').value = summary;
                 document.getElementById('loading').classList.remove('show');
                 
                 updateRecordButton(imageFile ? 'Bildbeschreibung fertig!' : 'Zusammenfassung fertig!');
@@ -1730,7 +1741,8 @@ am:`;
                 const errorMessage = 'Fehler beim Erstellen der Notiz: ' + error.message;
                 showError(errorMessage);
                 document.getElementById('loading').classList.remove('show');
-                resetForm();
+                // Bei Fehler Form nicht komplett zurücksetzen, damit der User es nochmal versuchen kann
+                updateRecordButton('Fehler. Erneut versuchen?');
             }
         }
 
@@ -3017,3 +3029,4 @@ function initMediaRecorderFallback() {
 </script>
 </body>
 </html>
+
