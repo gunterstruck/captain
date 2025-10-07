@@ -795,7 +795,6 @@
   #diag-last-error { color:#b50000; font-weight:600; }
 </style>
 
-//XXXX
     <link rel="apple-touch-icon" href="/captain/icon-192-v2.png">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1232,7 +1231,6 @@
             await writeTextToNFC(entry.text, buttonEl);
         }
         
-        // ✅ NEU: Konvertiert kompakten Key-Value-Text in eine Markdown-Tabelle
         function convertKeyValueToMarkdownTable(text) {
             const lines = text.trim().split('\n');
             let markdown = '| Merkmal | Wert |\n|---|---|\n';
@@ -1289,10 +1287,8 @@
             }
         }
         
-        // ✅ ÜBERARBEITET: Erkennt und konvertiert das kompakte NFC-Format
         async function processNFCReadout(text) {
              let processedText = text;
-             // Prüfen, ob der Text im kompakten Format ist und KEINE Markdown-Tabelle
              const isCompactFormat = text.includes('\n') && text.includes(':') && !text.includes('|---');
 
              if (isCompactFormat) {
@@ -1301,7 +1297,7 @@
                      showSuccess('Kompaktdaten vom NFC-Tag erkannt und in Tabelle umgewandelt.');
                  } catch (e) {
                      console.error("Fehler beim Umwandeln des NFC-Textes in eine Tabelle:", e);
-                     processedText = text; // Fallback auf Originaltext bei Fehler
+                     processedText = text;
                  }
              }
 
@@ -1355,7 +1351,6 @@
             reader.readAsDataURL(file);
         }
         
-        // ✅ ÜBERARBEITET: Neuer Workflow für Foto-zu-NFC mit kompaktem Format
         async function handlePhotoToNfc(e) {
             const file = e.target.files && e.target.files[0];
             if (!file) return;
@@ -1407,13 +1402,13 @@ am:`;
                 
                 if (writeSuccess) {
                     showSuccess('Daten erfolgreich auf NFC-Tag geschrieben!');
-                } // Fehlermeldung wird von writeTextToNFC angezeigt
+                }
 
             } catch (error) {
                 showError('Fehler beim Extrahieren der Daten: ' + error.message);
             } finally {
                 resetForm();
-                e.target.value = ''; // Input leeren für nächste Aufnahme
+                e.target.value = '';
             }
         }
 
@@ -2662,7 +2657,7 @@ am:`;
                 model = 'gpt-4o';
                 
                 let content = [{ type: 'text', text: userPrompt }];
-                if (currentImageBase64) { // Note: This uses the global state, might need adjustment for the new workflow
+                if (currentImageBase64) {
                     content.push({
                         type: 'image_url',
                         image_url: {
@@ -3006,10 +3001,19 @@ async function transcribeAudio(file, apiKey, provider) {
 <script>
 function stopStream(stream){ try{ if(stream) stream.getTracks().forEach(t=>t.stop()); }catch(_){} }
 
-function initMediaRecorderFallback(){
-    try { if(window.__memotag?.diag) window.__memotag.diag.diagLog('Init: MediaRecorder Fallback (PC Aufnahme)'); } catch(_) {}
+function initMediaRecorderFallback() {
+    // Diese Funktion prüft, ob eine Alternative (Fallback) für die Audio-Aufnahme benötigt wird.
+    // Eine Log-Nachricht wird nur ausgegeben, wenn die MediaRecorder-API nicht vom Browser unterstützt wird.
+    if (!('MediaRecorder' in window)) {
+        try {
+            if (window.__memotag?.diag) {
+                window.__memotag.diag.diagLog('Hinweis: MediaRecorder nicht unterstützt. Fallback wird aktiviert.');
+            }
+        } catch(_) {
+            // Fehler beim Loggen werden ignoriert.
+        }
+    }
 }
 </script>
 </body>
 </html>
-
