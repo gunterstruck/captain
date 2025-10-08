@@ -2804,15 +2804,8 @@ ${transcript}
                 model = 'gpt-4o';
                 
                 let content = [{ type: 'text', text: userPrompt }];
-                if (currentImageBase64) {
-                    content.push({
-                        type: 'image_url',
-                        image_url: {
-                            url: currentImageBase64,
-                            detail: "low" 
-                        }
-                    });
-                } else if (imageParts) {
+                // The imageFile parameter is the single source of truth now.
+                if (imageParts) {
                      content.push({
                         type: 'image_url',
                         image_url: {
