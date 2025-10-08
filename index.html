@@ -968,6 +968,25 @@
         </div>
     </div>
 
+    <!-- NFC Confirmation Modal -->
+    <div class="modal" id="nfcConfirmModal" role="dialog" aria-labelledby="nfcConfirmTitle">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="section-title" id="nfcConfirmTitle">Daten für NFC vorbereitet</h2>
+                <button class="modal-close" id="closeNfcConfirmModal" aria-label="Schließen">✕</button>
+            </div>
+            <p>Die folgenden Daten werden auf den NFC-Tag geschrieben. Bitte überprüfen:</p>
+            <textarea id="nfcPayloadPreview" readonly style="min-height: 150px; background-color: #f9fafb; font-family: monospace; font-size: 12px;"></textarea>
+            <div id="nfcPayloadChanges" style="font-size:11px;color:#a15a00;margin-top:6px;"></div>
+            <p style="text-align: right; font-size: 12px; margin-top: 5px; color: #6b7280;">Größe: <strong id="nfcPayloadSize">0 / 880</strong> Bytes</p>
+            <div class="button-group">
+                <button class="btn-primary" id="confirmNfcWriteBtn">Auf NFC-Tag schreiben</button>
+                <button class="btn-secondary" id="cancelNfcWriteBtn">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+
+
     <script>
         // MediaRecorder State
         let __mr, __mrStream, __mrChunks = [], __mrRecording = false;
@@ -988,25 +1007,20 @@
         let isApiSetupExpanded = false;
 
         const DIARY_KEY = 'diary_entries_v2';
+        const MAX_NFC_BYTES = 880;
 
         document.addEventListener('DOMContentLoaded', () => {
             loadAPIKey();
             loadLocationPermission();
-            
             migrateStripImages();
-            
             loadEntries();
             setupEventListeners();
             updateAvailableTags(); 
-            
             initMediaRecorderFallback();
             initIOSFallback();
-            
             updateNFCButton();
             updateNFCWriteButton();
-
             document.getElementById('diagnostics').classList.add('collapsed');
-            
         });
         
         function migrateStripImages() {
@@ -1077,6 +1091,97 @@
             diag.classList.toggle('collapsed');
         }
 
+        const FIELD_MAP = {
+          'HK.Nr.': 'HK', 'KKS': 'KKS', 'Leistung': 'P', 'Spannung': 'U',
+          'Strom': 'I', 'Widerstand': 'R', 'Regler': 'Reg', 'Sicherheitsregler/Begrenzer': 'Sich',
+          'Wächter': 'Wäch', 'Projekt Nr.': 'Proj', 'geprüft von': 'Chk', 'am': 'Date',
+          'Anzahl Heizkabeleinheiten': 'Anz', 'Trennkasten': 'TB', 'Heizkabeltyp': 'HKT',
+          'Schaltung': 'Sch', 'PT 100': 'PT100', 'NiCr-Ni': 'NiCr'
+        };
+
+        function byteLen(s){ return new TextEncoder().encode(s || '').length; }
+
+        function buildCompactPayload(extracted, maxBytes = MAX_NFC_BYTES) {
+          // Priorität (hoch → niedrig)
+          const priorityList = [
+            'HK.Nr.','KKS','Leistung','Spannung','Strom','Projekt Nr.','geprüft von','am',
+            'Widerstand','Regler','Anzahl Heizkabeleinheiten','PT 100','NiCr-Ni',
+            'Sicherheitsregler/Begrenzer','Wächter','Heizkabeltyp','Trennkasten','Schaltung'
+          ];
+
+          const removedFields = [];
+          const truncatedFields = [];
+          const lines = [];
+
+          // 1) Baue initiale Kurzschlüssel-Liste in Prioritätsreihenfolge
+          for (const fullKey of priorityList) {
+            const raw = extracted[fullKey];
+            if (raw != null && String(raw).trim() !== '') {
+              const shortKey = FIELD_MAP[fullKey] || fullKey.replace(/\s+/g,'').slice(0,6);
+              const v = String(raw).replace(/[\n\r]+/g, ' ').trim();
+              lines.push(`${shortKey}:${v}`);
+            }
+          }
+
+          // helper: erstelle payload und messe Bytes
+          function buildPayloadFromLines(ls) {
+            // Verwende Spread-Operator, nicht fehlerhafte ".lines"-Konstrukte
+            return ['v1', ...ls].join('\n');
+          }
+
+          let payload = buildPayloadFromLines(lines);
+          if (byteLen(payload) <= maxBytes) return { payload, removedFields, truncatedFields };
+
+          // 2) Heuristische Kürzung: bestimmte lange Textfelder kürzen (nach Wichtigkeit)
+          const truncOrder = ['Reg','HKT','Chk','Sich','Wäch'];
+          for (const sk of truncOrder) {
+            const idx = lines.findIndex(L => L.startsWith(sk + ':'));
+            if (idx >= 0 && lines[idx].length > 20) {
+              const fullKey = Object.keys(FIELD_MAP).find(k => FIELD_MAP[k] === sk) || sk;
+              lines[idx] = lines[idx].slice(0, 18) + '…';
+              truncatedFields.push(fullKey);
+              payload = buildPayloadFromLines(lines);
+              if (byteLen(payload) <= maxBytes) return { payload, removedFields, truncatedFields };
+            }
+          }
+
+          // 3) Entferne nach Priorität die niedrigsten Felder iterativ
+          for (let i = priorityList.length - 1; i >= 0; i--) {
+            const fk = priorityList[i];
+            const sk = FIELD_MAP[fk] || fk.replace(/\s+/g,'').slice(0,6);
+            const idx = lines.findIndex(L => L.startsWith(sk + ':'));
+            if (idx >= 0) {
+              lines.splice(idx, 1);
+              removedFields.push(fk);
+              payload = buildPayloadFromLines(lines);
+              if (byteLen(payload) <= maxBytes) return { payload, removedFields, truncatedFields };
+            }
+          }
+
+          // 4) Notfall: harte Trunkierung (letzte Rettung)
+          if (byteLen(payload) > maxBytes) {
+            payload = payload.slice(0, maxBytes - 1) + '…';
+            if (!truncatedFields.includes('Payload')) truncatedFields.push('Payload');
+          }
+
+          return { payload, removedFields, truncatedFields };
+        }
+
+        function parseExtractedText(text) {
+            const data = {};
+            const allowedKeys = Object.keys(FIELD_MAP);
+            const lines = text.trim().split('\n');
+            for(const line of lines) {
+                const parts = line.split(':');
+                if (parts.length >= 2) {
+                    const key = parts[0].trim();
+                    const value = parts.slice(1).join(':').trim();
+                    if (allowedKeys.includes(key) && value) data[key] = value;
+                }
+            }
+            return data;
+        }
+
 
         function setupEventListeners() {
             document.getElementById('headerTitle').addEventListener('click', toggleApiSetup);
@@ -1135,6 +1240,9 @@
             });
             document.getElementById('confirmNoBtn').addEventListener('click', closeConfirmModal);
             document.getElementById('closeConfirmModal').addEventListener('click', closeConfirmModal);
+
+            document.getElementById('closeNfcConfirmModal').addEventListener('click', () => document.getElementById('nfcConfirmModal').classList.remove('show'));
+            document.getElementById('cancelNfcWriteBtn').addEventListener('click', () => document.getElementById('nfcConfirmModal').classList.remove('show'));
 
             const audioInput = document.getElementById('audioInput');
             audioInput.addEventListener('change', handleAudioFileSelection);
@@ -1335,10 +1443,7 @@
                     await summarize(null, file);
                 } finally {
                     document.getElementById('status').classList.remove('processing');
-                    // Bild NICHT sofort ausblenden; erst nach Erfolg oder manuellem Reset
                 }
-                
-                // document.getElementById('transcriptSection').classList.remove('show'); // Temporär auskommentiert, damit man das Ergebnis sieht
             };
 
             reader.onerror = () => {
@@ -1349,71 +1454,101 @@
             reader.readAsDataURL(file);
         }
         
-        // ✅ ÜBERARBEITET: Neuer Workflow für Foto-zu-NFC mit kompaktem Format
         async function handlePhotoToNfc(e) {
-            const file = e.target.files && e.target.files[0];
-            if (!file) return;
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
 
-            updateRecordButton('Foto wird analysiert...', 'processing');
-            showSuccess('Foto wird analysiert, bitte warten...');
+          updateRecordButton('Foto wird analysiert...', 'processing');
+          showSuccess('Foto wird analysiert, bitte warten...');
 
-            const apiKey = document.getElementById('apiKey').value.trim();
-            const provider = document.getElementById('apiProvider').value;
-            if (!apiKey) {
-                showError('Bitte gib einen API-Schlüssel ein.');
-                resetForm();
-                return;
+          const apiKey = document.getElementById('apiKey').value.trim();
+          const provider = document.getElementById('apiProvider').value;
+          if (!apiKey) { showError('Bitte gib einen API-Schlüssel ein.'); resetForm(); return; }
+
+          const extractionPrompt = `Analysiere das Bild dieses Formulars. Extrahiere die Werte für die folgenden Merkmale. Gib deine Antwort NUR als Liste von "Merkmal:Wert"-Paaren zurück, wobei jedes Paar in einer neuen Zeile steht. Wenn ein Merkmal nicht gefunden wird, lasse die Zeile weg. Füge KEINE zusätzlichen Erklärungen, Kommentare oder Formatierungen wie Markdown hinzu.
+
+Merkmale:
+HK.Nr.
+KKS
+Leistung
+Strom
+Spannung
+Widerstand
+Regler
+Sicherheitsregler/Begrenzer
+Wächter
+Projekt Nr.
+Anzahl Heizkabeleinheiten
+Trennkasten
+Heizkabeltyp
+Schaltung
+PT 100
+NiCr-Ni
+geprüft von
+am`;
+
+          const systemInstruction = "Du bist ein präziser Datenextraktions-Assistent. Deine einzige Aufgabe ist es, die Werte im vorgegebenen Key-Value-Format zurückzugeben.";
+
+          try {
+            const extractedText = await callLLMAPI(extractionPrompt, apiKey, provider, 0, file, systemInstruction);
+
+            if (!extractedText || !extractedText.includes(':')) {
+              throw new Error("Die KI hat keine gültigen Daten zurückgegeben.");
             }
 
-            const extractionPrompt = `Analysiere das Bild. Extrahiere die Werte für die folgenden Merkmale. Gib deine Antwort NUR als Liste von "Merkmal:Wert"-Paaren zurück, wobei jedes Paar in einer neuen Zeile steht. Lasse den Wert leer, wenn er nicht gefunden wird. Füge KEINE zusätzlichen Erklärungen, Kommentare oder Formatierungen wie Markdown hinzu.
-
-HK.Nr.:
-KKS:
-Leistung:
-Strom:
-Spannung:
-Widerstand:
-Regler:
-Sicherheitsregler/Begrenzer:
-Wächter:
-Projekt Nr.:
-Anzahl Heizkabeleinheiten:
-Trennkasten:
-Heizkabeltyp:
-Schaltung:
-Meßwertgeber:
-PT 100:
-NiCr-Ni:
-geprüft von:
-am:`;
+            const extractedData = parseExtractedText(extractedText);
+            const payloadObj = buildCompactPayload(extractedData);
             
-            const systemInstruction = "Du bist ein präziser Datenextraktions-Assistent. Deine einzige Aufgabe ist es, Daten aus einem Bild zu extrahieren und sie in dem vom Benutzer vorgegebenen kompakten Key-Value-Format zurückzugeben.";
-
-            try {
-                const compactData = await callLLMAPI(extractionPrompt, apiKey, provider, 0, file, systemInstruction);
-                
-                if (!compactData || !compactData.includes(':')) {
-                    throw new Error("Die KI hat keine gültigen Daten zurückgegeben.");
-                }
-
-                updateRecordButton('Analyse fertig. Schreibe auf NFC...', 'processing');
-                const writeSuccess = await writeTextToNFC(compactData);
-                
-                if (writeSuccess) {
-                    showSuccess('Daten erfolgreich auf NFC-Tag geschrieben!');
-                }
-
-            } catch (error) {
-                showError('Fehler beim Extrahieren der Daten: ' + error.message);
-            } finally {
-                resetForm();
-                e.target.value = '';
+            document.getElementById('nfcPayloadPreview').value = payloadObj.payload;
+            const size = byteLen(payloadObj.payload);
+            const sizeEl = document.getElementById('nfcPayloadSize');
+            if (sizeEl) {
+                sizeEl.textContent = `${size} / ${MAX_NFC_BYTES}`;
+                sizeEl.style.color = size > MAX_NFC_BYTES ? '#b50000' : '#0a7f4f';
             }
+
+            const changes = [];
+            if (payloadObj.truncatedFields && payloadObj.truncatedFields.length) {
+                changes.push('Gekürzt: ' + payloadObj.truncatedFields.join(', '));
+            }
+            if (payloadObj.removedFields && payloadObj.removedFields.length) {
+                changes.push('Entfernt: ' + payloadObj.removedFields.join(', '));
+            }
+            const changesEl = document.getElementById('nfcPayloadChanges');
+            if (changesEl) changesEl.innerHTML = changes.length ? changes.join('; ') : '';
+
+            const modal = document.getElementById('nfcConfirmModal');
+            modal.classList.add('show');
+            const confirmBtn = document.getElementById('confirmNfcWriteBtn');
+            const newBtn = confirmBtn.cloneNode(true);
+            confirmBtn.parentNode.replaceChild(newBtn, confirmBtn);
+            newBtn.addEventListener('click', async () => {
+                try {
+                    newBtn.disabled = true;
+                    const success = await writeTextToNFC(payloadObj.payload);
+                    if (success) {
+                        modal.classList.remove('show');
+                        resetForm();
+                    }
+                } catch (err) {
+                    showError('Fehler beim Schreiben auf NFC: ' + (err.message || err));
+                } finally {
+                    newBtn.disabled = false;
+                }
+            });
+
+            updateRecordButton('Bereit zur Aufnahme');
+          } catch (error) {
+            showError('Fehler beim Extrahieren der Daten: ' + error.message);
+            resetForm();
+          } finally {
+            e.target.value = '';
+          }
         }
 
 
         async function imageToText(file, apiKey, provider) {
-            const maxMB = 12; // Erhöht von 5 auf 12 MB
+            const maxMB = 12;
             if (file.size > maxMB * 1024 * 1024) {
                 throw new Error(`Bilddatei ist größer als ${maxMB} MB.`);
             }
@@ -1556,7 +1691,7 @@ am:`;
             }
         }
 
-        function initMediaRecorderFallback(){ }
+        
         function initIOSFallback() {
             const iosHint = document.getElementById('iosHint');
             const audioInput = document.getElementById('audioInput');
@@ -1724,7 +1859,7 @@ Text:
 ---
 ${transcript}
 ---`;
-                    const sys = 'Du bist ein deutscher Lektor. Gib ausschließlich den überarbeiteten Text zurück – ohne Zusatz.';
+                    const sys = "Du bist ein Assistent, der ausschließlich den gegebenen Text sprachlich sauber umformuliert. Gib NUR den neu formulierten Text zurück — KEINE Erklärungen oder Kommentare.";
                     summary = await callLLMAPI(userPrompt, apiKey, provider, 0, null, sys);
                     document.getElementById('summary').value = summary;
                 }
@@ -1741,7 +1876,6 @@ ${transcript}
                 const errorMessage = 'Fehler beim Erstellen der Notiz: ' + error.message;
                 showError(errorMessage);
                 document.getElementById('loading').classList.remove('show');
-                // Bei Fehler Form nicht komplett zurücksetzen, damit der User es nochmal versuchen kann
                 updateRecordButton('Fehler. Erneut versuchen?');
             }
         }
@@ -2002,8 +2136,9 @@ ${transcript}
                 ---
 
                 Finaler Text:`;
-
-                const modifiedText = await callLLMAPI(prompt, apiKey, provider);
+                
+                const rephraseSystem = "Du bist ein präziser Texteditor. Gib NUR den umformulierten Text zurück — keine Erklärungen, keine Einleitungen, keine Kommentare. Ersetze Füllwörter, korrigiere Grammatik und formatiere sauber.";
+                const modifiedText = await callLLMAPI(prompt, apiKey, provider, 0, null, rephraseSystem);
                 document.getElementById('editText').value = modifiedText;
                 showSuccess('Text per Diktat aktualisiert!', 'editSuccess');
 
@@ -2951,7 +3086,7 @@ async function transcribeAudio(file, apiKey, provider) {
         const b64 = await fileToBase64(file);
         const mime = normalizeMime(file);
         const body = {
-            model: 'claude-3-5-haiku-latest',
+            model: 'claude-3-5-sonnet-20240620',
             max_tokens: 2000,
             system: 'Du bist ein präziser Transkriptionsassistent. Transkribiere nur den gesprochenen deutschen Text, ohne Zusatz.',
             messages: [{
@@ -3011,19 +3146,13 @@ async function transcribeAudio(file, apiKey, provider) {
 }
 </script>
 <script>
-function stopStream(stream){ try{ if(stream) stream.getTracks().forEach(t=>t.stop()); }catch(_){} }
-
 function initMediaRecorderFallback() {
-    // Diese Funktion prüft, ob eine Alternative (Fallback) für die Audio-Aufnahme benötigt wird.
-    // Eine Log-Nachricht wird nur ausgegeben, wenn die MediaRecorder-API nicht vom Browser unterstützt wird.
     if (!('MediaRecorder' in window)) {
         try {
             if (window.__memotag?.diag) {
                 window.__memotag.diag.diagLog('Hinweis: MediaRecorder nicht unterstützt. Fallback wird aktiviert.');
             }
-        } catch(_) {
-            // Fehler beim Loggen werden ignoriert.
-        }
+        } catch(_) {}
     }
 }
 </script>

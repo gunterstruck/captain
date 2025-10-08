@@ -1,5 +1,5 @@
 // Version bei Änderungen erhöhen, damit Caches sauber erneuert werden
-const CACHE_NAME = 'sprach-tagebuch-v5-5';
+const CACHE_NAME = 'sprach-tagebuch-v5-6';
 //const CACHE_NAME = 'sprach-tagebuch-v5-3';
 //const CACHE_NAME = 'sprach-tagebuch-v5';
 const ASSETS_TO_CACHE = [
